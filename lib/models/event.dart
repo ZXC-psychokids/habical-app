@@ -1,72 +1,82 @@
 import 'model_parsers.dart';
 
-class Task {
-  Task({
+class Event {
+  Event({
     required this.id,
+    required this.title,
     required this.startsAt,
     required this.endsAt,
-    required this.title,
-    required this.isCompleted,
+    required this.userId,
+    this.taskId,
   }) : assert(id != ''),
        assert(title != ''),
+       assert(userId != ''),
+       assert(taskId == null || taskId.isNotEmpty),
        assert(!endsAt.isBefore(startsAt));
 
   final String id;
+  final String title;
   final DateTime startsAt;
   final DateTime endsAt;
-  final String title;
-  final bool isCompleted;
+  final String userId;
+  final String? taskId;
 
-  Task copyWith({
+  Event copyWith({
     String? id,
+    String? title,
     DateTime? startsAt,
     DateTime? endsAt,
-    String? title,
-    bool? isCompleted,
+    String? userId,
+    String? taskId,
+    bool removeTaskId = false,
   }) {
-    return Task(
+    return Event(
       id: id ?? this.id,
+      title: title ?? this.title,
       startsAt: startsAt ?? this.startsAt,
       endsAt: endsAt ?? this.endsAt,
-      title: title ?? this.title,
-      isCompleted: isCompleted ?? this.isCompleted,
+      userId: userId ?? this.userId,
+      taskId: removeTaskId ? null : (taskId ?? this.taskId),
     );
   }
 
-  factory Task.fromMap(Map<String, dynamic> map) {
-    return Task(
+  factory Event.fromMap(Map<String, dynamic> map) {
+    return Event(
       id: parseRequiredString(map['id'], 'id'),
+      title: parseRequiredString(map['title'], 'title'),
       startsAt: parseRequiredDateTime(map['startsAt'], 'startsAt'),
       endsAt: parseRequiredDateTime(map['endsAt'], 'endsAt'),
-      title: parseRequiredString(map['title'], 'title'),
-      isCompleted: parseRequiredBool(map['isCompleted'], 'isCompleted'),
+      userId: parseRequiredString(map['userId'], 'userId'),
+      taskId: parseNullableString(map['taskId'], 'taskId'),
     );
   }
 
   Map<String, dynamic> toMap() {
     return {
       'id': id,
+      'title': title,
       'startsAt': startsAt.toIso8601String(),
       'endsAt': endsAt.toIso8601String(),
-      'title': title,
-      'isCompleted': isCompleted,
+      'userId': userId,
+      'taskId': taskId,
     };
   }
 
   @override
   bool operator ==(Object other) {
     return identical(this, other) ||
-        other is Task &&
+        other is Event &&
             runtimeType == other.runtimeType &&
             id == other.id &&
+            title == other.title &&
             startsAt == other.startsAt &&
             endsAt == other.endsAt &&
-            title == other.title &&
-            isCompleted == other.isCompleted;
+            userId == other.userId &&
+            taskId == other.taskId;
   }
 
   @override
   int get hashCode {
-    return Object.hash(id, startsAt, endsAt, title, isCompleted);
+    return Object.hash(id, title, startsAt, endsAt, userId, taskId);
   }
 }
