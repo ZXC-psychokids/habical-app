@@ -30,7 +30,7 @@ class HabitDetailsCubit extends Cubit<HabitDetailsState> {
       emit(
         state.copyWith(
           status: HabitDetailsStatus.failure,
-          errorMessage: 'Failed to load habit details.',
+          errorMessage: 'Не удалось загрузить детали привычки.',
         ),
       );
     }

@@ -48,7 +48,7 @@ class _HabitDetailsView extends StatelessWidget {
 
         return Scaffold(
           backgroundColor: const Color(0xFFEDEDED),
-          appBar: AppBar(title: Text(data?.habit.title ?? 'Habit')),
+          appBar: AppBar(title: Text(data?.habit.title ?? 'Привычка')),
           body: SafeArea(
             child: isInitialLoad
                 ? const Center(child: CircularProgressIndicator())
@@ -64,6 +64,17 @@ class _HabitDetailsView extends StatelessWidget {
                             fontWeight: FontWeight.w700,
                           ),
                         ),
+                        if (data?.habit.isShared ?? false) ...[
+                          const SizedBox(height: 6),
+                          Text(
+                            'Совместная привычка с ${data!.habit.sharedWithName}',
+                            style: const TextStyle(
+                              fontSize: 15,
+                              color: Color(0xFF4D4D4D),
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
                         const SizedBox(height: 16),
                         _CalendarHeader(month: state.visibleMonth),
                         const SizedBox(height: 8),
@@ -118,18 +129,18 @@ class _CalendarHeader extends StatelessWidget {
 
   String _monthLabel(DateTime date) {
     const months = <String>[
-      'January',
-      'February',
-      'March',
-      'April',
-      'May',
-      'June',
-      'July',
-      'August',
-      'September',
-      'October',
-      'November',
-      'December',
+      'Январь',
+      'Февраль',
+      'Март',
+      'Апрель',
+      'Май',
+      'Июнь',
+      'Июль',
+      'Август',
+      'Сентябрь',
+      'Октябрь',
+      'Ноябрь',
+      'Декабрь',
     ];
 
     return '${months[date.month - 1]} ${date.year}';
@@ -166,13 +177,13 @@ class _HabitCompletionCalendar extends StatelessWidget {
         children: [
           const Row(
             children: [
-              Expanded(child: Center(child: _Weekday('Su'))),
-              Expanded(child: Center(child: _Weekday('Mo'))),
-              Expanded(child: Center(child: _Weekday('Tu'))),
-              Expanded(child: Center(child: _Weekday('We'))),
-              Expanded(child: Center(child: _Weekday('Th'))),
-              Expanded(child: Center(child: _Weekday('Fr'))),
-              Expanded(child: Center(child: _Weekday('Sa'))),
+              Expanded(child: Center(child: _Weekday('Вс'))),
+              Expanded(child: Center(child: _Weekday('Пн'))),
+              Expanded(child: Center(child: _Weekday('Вт'))),
+              Expanded(child: Center(child: _Weekday('Ср'))),
+              Expanded(child: Center(child: _Weekday('Чт'))),
+              Expanded(child: Center(child: _Weekday('Пт'))),
+              Expanded(child: Center(child: _Weekday('Сб'))),
             ],
           ),
           const SizedBox(height: 8),
@@ -202,11 +213,11 @@ class _HabitCompletionCalendar extends StatelessWidget {
             children: [
               _LegendDot(color: Colors.green),
               SizedBox(width: 6),
-              Text('Completed'),
+              Text('Выполнено'),
               SizedBox(width: 18),
               _LegendDot(color: Colors.red),
               SizedBox(width: 6),
-              Text('Missed'),
+              Text('Пропущено'),
             ],
           ),
         ],

@@ -40,7 +40,7 @@ class _CreateHabitView extends StatelessWidget {
       builder: (context, state) {
         final cubit = context.read<CreateHabitCubit>();
         return Scaffold(
-          appBar: AppBar(title: const Text('New Habit')),
+          appBar: AppBar(title: const Text('Новая привычка')),
           body: SafeArea(
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -48,7 +48,7 @@ class _CreateHabitView extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    'Name',
+                    'Название',
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
                   ),
                   const SizedBox(height: 8),
@@ -59,7 +59,7 @@ class _CreateHabitView extends StatelessWidget {
                     onChanged: cubit.updateName,
                     onSubmitted: (_) => cubit.submit(),
                     decoration: InputDecoration(
-                      hintText: 'Enter habit name',
+                      hintText: 'Введите название привычки',
                       filled: true,
                       fillColor: const Color(0xFFF3F3F3),
                       border: OutlineInputBorder(
@@ -74,7 +74,7 @@ class _CreateHabitView extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
                   const Text(
-                    'Start date',
+                    'Дата начала',
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
                   ),
                   const SizedBox(height: 8),
@@ -124,7 +124,7 @@ class _CreateHabitView extends StatelessWidget {
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
                           : const Text(
-                              'Save',
+                              'Сохранить',
                               style: TextStyle(
                                 fontSize: 17,
                                 fontWeight: FontWeight.w600,

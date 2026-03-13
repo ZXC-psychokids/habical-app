@@ -25,12 +25,28 @@ class StreakService {
     }
 
     var cursor = asOfDay;
+    final currentWindowStart = cursor.subtract(
+      Duration(days: periodicityDays - 1),
+    );
+    final hasCompletionInCurrentWindow = _hasCompletionInWindow(
+      days: uniqueDays,
+      windowStart: currentWindowStart,
+      windowEnd: cursor,
+    );
+
+    // Do not break streak for an in-progress period that has no completion yet.
+    if (!hasCompletionInCurrentWindow) {
+      cursor = currentWindowStart.subtract(const Duration(days: 1));
+    }
+
     var completedWindows = 0;
 
     while (true) {
       final windowStart = cursor.subtract(Duration(days: periodicityDays - 1));
-      final hasCompletionInWindow = uniqueDays.any(
-        (day) => !day.isAfter(cursor) && !day.isBefore(windowStart),
+      final hasCompletionInWindow = _hasCompletionInWindow(
+        days: uniqueDays,
+        windowStart: windowStart,
+        windowEnd: cursor,
       );
 
       if (!hasCompletionInWindow) {
@@ -46,5 +62,15 @@ class StreakService {
 
   DateTime _dayOnly(DateTime dateTime) {
     return DateTime(dateTime.year, dateTime.month, dateTime.day);
+  }
+
+  bool _hasCompletionInWindow({
+    required List<DateTime> days,
+    required DateTime windowStart,
+    required DateTime windowEnd,
+  }) {
+    return days.any(
+      (day) => !day.isAfter(windowEnd) && !day.isBefore(windowStart),
+    );
   }
 }

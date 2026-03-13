@@ -92,7 +92,7 @@ class _HabitsView extends StatelessWidget {
                 padding: const EdgeInsets.fromLTRB(16, 20, 16, 20),
                 children: [
                   const Text(
-                    'Habits',
+                    'Привычки',
                     style: TextStyle(fontSize: 34, fontWeight: FontWeight.w700),
                   ),
                   const SizedBox(height: 14),
@@ -126,7 +126,7 @@ class _HabitsView extends StatelessWidget {
                         ),
                       ),
                       child: const Text(
-                        'Add new habit',
+                        'Добавить новую привычку',
                         style: TextStyle(
                           fontSize: 17,
                           fontWeight: FontWeight.w600,
@@ -174,19 +174,44 @@ class _HabitCard extends StatelessWidget {
           child: Row(
             children: [
               Expanded(
-                child: Text(
-                  item.habit.title,
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w600,
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      item.habit.title,
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    if (item.habit.isShared) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        'Совместная с ${item.habit.sharedWithName}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF5A5A5A),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
               const SizedBox(width: 12),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  const Icon(Icons.local_fire_department, size: 26),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (item.habit.isShared) ...[
+                        const Icon(Icons.group, size: 18),
+                        const SizedBox(width: 4),
+                      ],
+                      const Icon(Icons.local_fire_department, size: 26),
+                    ],
+                  ),
                   Text(
                     item.streakLabel,
                     style: const TextStyle(
@@ -216,7 +241,7 @@ class _EmptyHabitsCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: const Color(0x1A000000)),
       ),
-      child: const Text('No habits yet. Tap the button below to add one.'),
+      child: const Text('Пока нет привычек. Добавьте первую по кнопке ниже.'),
     );
   }
 }

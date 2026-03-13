@@ -31,7 +31,7 @@ class HabitsCubit extends Cubit<HabitsState> {
       emit(
         state.copyWith(
           status: HabitsStatus.failure,
-          errorMessage: 'Failed to load habits.',
+          errorMessage: 'Не удалось загрузить привычки.',
         ),
       );
     }
@@ -52,7 +52,7 @@ class HabitsCubit extends Cubit<HabitsState> {
       emit(
         state.copyWith(
           status: HabitsStatus.failure,
-          errorMessage: 'Failed to add habit.',
+          errorMessage: 'Не удалось добавить привычку.',
         ),
       );
     }

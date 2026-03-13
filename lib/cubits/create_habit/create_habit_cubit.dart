@@ -25,7 +25,7 @@ class CreateHabitCubit extends Cubit<CreateHabitState> {
     if (title.isEmpty) {
       emit(
         state.copyWith(
-          errorMessage: 'Enter habit name.',
+          errorMessage: 'Введите название привычки.',
           clearSubmission: true,
         ),
       );
