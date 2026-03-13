@@ -1,4 +1,5 @@
 import '../models/models.dart';
+import 'in_memory_app_store.dart';
 import '../services/streak_service.dart';
 
 abstract class HabitsRepository {
@@ -17,31 +18,29 @@ abstract class HabitsRepository {
 }
 
 class InMemoryHabitsRepository implements HabitsRepository {
-  InMemoryHabitsRepository({DateTime? now, StreakService? streakService})
-    : _now = now ?? DateTime.now(),
-      _streakService = streakService ?? const StreakService() {
-    _seedData();
-  }
+  InMemoryHabitsRepository({
+    DateTime? now,
+    StreakService? streakService,
+    InMemoryAppStore? store,
+  }) : _store = store ?? InMemoryAppStore(now: now),
+       _streakService = streakService ?? const StreakService();
 
-  final DateTime _now;
+  final InMemoryAppStore _store;
   final StreakService _streakService;
-
-  late List<Habit> _habits;
-  late Map<String, List<Task>> _tasksByHabit;
-  int _nextHabitId = 1;
 
   @override
   Future<List<HabitListItem>> fetchHabits({
     required String userId,
     DateTime? asOf,
   }) async {
-    final targetDate = asOf ?? _now;
+    final targetDate = asOf ?? _store.now;
 
     final items =
-        _habits
+        _store.habits
             .where((habit) => habit.userId == userId)
             .map((habit) {
-              final habitTasks = _tasksByHabit[habit.id] ?? const <Task>[];
+              final habitTasks =
+                  _store.tasksByHabit[habit.id] ?? const <Task>[];
               final completionDates = habitTasks
                   .where((task) => task.isCompleted)
                   .map((task) => task.startsAt)
@@ -70,19 +69,19 @@ class InMemoryHabitsRepository implements HabitsRepository {
   }) async {
     final normalizedTitle = title.trim();
     if (normalizedTitle.isEmpty) {
-      throw ArgumentError('Habit title cannot be empty.');
+      throw ArgumentError('Название привычки не может быть пустым.');
     }
 
     final habit = Habit(
-      id: 'habit_${_nextHabitId++}',
+      id: 'habit_${_store.nextHabitId++}',
       title: normalizedTitle,
       periodicityDays: 1,
       initialStreakDays: 0,
       userId: userId,
     );
 
-    _habits = [..._habits, habit];
-    _tasksByHabit[habit.id] = _generateTasksForPeriod(
+    _store.habits = [..._store.habits, habit];
+    _store.tasksByHabit[habit.id] = _store.generateTasksForPeriod(
       habit: habit,
       startDay: _dayOnly(startDate),
       days: 30,
@@ -93,109 +92,20 @@ class InMemoryHabitsRepository implements HabitsRepository {
   @override
   Future<HabitDetailsData> fetchHabitDetails({required String habitId}) async {
     Habit? habit;
-    for (final item in _habits) {
+    for (final item in _store.habits) {
       if (item.id == habitId) {
         habit = item;
         break;
       }
     }
     if (habit == null) {
-      throw StateError('Habit not found.');
+      throw StateError('Привычка не найдена.');
     }
 
-    final tasks = [...(_tasksByHabit[habit.id] ?? const <Task>[])]
+    final tasks = [...(_store.tasksByHabit[habit.id] ?? const <Task>[])]
       ..sort((a, b) => a.startsAt.compareTo(b.startsAt));
 
     return HabitDetailsData(habit: habit, tasks: tasks);
-  }
-
-  List<Task> _generateTasksForPeriod({
-    required Habit habit,
-    required DateTime startDay,
-    required int days,
-    Set<DateTime> completedDays = const <DateTime>{},
-  }) {
-    final normalizedCompletedDays = completedDays.map(_dayOnly).toSet();
-    final tasks = <Task>[];
-    final step = habit.periodicityDays <= 0 ? 1 : habit.periodicityDays;
-    for (var offset = 0; offset < days; offset += step) {
-      final day = startDay.add(Duration(days: offset));
-      final start = day.add(const Duration(hours: 9));
-      final end = start.add(const Duration(hours: 1));
-      final isCompleted = normalizedCompletedDays.contains(_dayOnly(day));
-
-      tasks.add(
-        Task(
-          id: 'task_${habit.id}_$offset',
-          startsAt: start,
-          endsAt: end,
-          title: habit.title,
-          isCompleted: isCompleted,
-        ),
-      );
-    }
-
-    return tasks;
-  }
-
-  void _seedData() {
-    final today = _dayOnly(_now);
-
-    _habits = const [
-      Habit(
-        id: 'habit_1',
-        title: 'Read 30 minutes',
-        periodicityDays: 1,
-        initialStreakDays: 0,
-        userId: 'user_me',
-      ),
-      Habit(
-        id: 'habit_2',
-        title: 'Gym workout',
-        periodicityDays: 1,
-        initialStreakDays: 0,
-        userId: 'user_me',
-      ),
-      Habit(
-        id: 'habit_3',
-        title: 'Drink enough water',
-        periodicityDays: 1,
-        initialStreakDays: 0,
-        userId: 'user_me',
-      ),
-    ];
-
-    _tasksByHabit = {
-      'habit_1': _generateTasksForPeriod(
-        habit: _habits[0],
-        startDay: today.subtract(const Duration(days: 12)),
-        days: 42,
-        completedDays: {
-          today,
-          today.subtract(const Duration(days: 1)),
-          today.subtract(const Duration(days: 2)),
-          today.subtract(const Duration(days: 3)),
-        },
-      ),
-      'habit_2': _generateTasksForPeriod(
-        habit: _habits[1],
-        startDay: today.subtract(const Duration(days: 12)),
-        days: 42,
-        completedDays: {
-          today.subtract(const Duration(days: 1)),
-          today.subtract(const Duration(days: 3)),
-          today.subtract(const Duration(days: 5)),
-        },
-      ),
-      'habit_3': _generateTasksForPeriod(
-        habit: _habits[2],
-        startDay: today.subtract(const Duration(days: 12)),
-        days: 42,
-        completedDays: {today, today.subtract(const Duration(days: 1))},
-      ),
-    };
-
-    _nextHabitId = _habits.length + 1;
   }
 
   DateTime _dayOnly(DateTime value) {

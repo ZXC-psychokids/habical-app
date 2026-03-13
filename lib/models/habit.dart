@@ -7,17 +7,22 @@ class Habit {
     required this.periodicityDays,
     required this.initialStreakDays,
     required this.userId,
+    this.sharedWithName,
   }) : assert(id != ''),
        assert(title != ''),
        assert(periodicityDays > 0),
        assert(initialStreakDays >= 0),
-       assert(userId != '');
+       assert(userId != ''),
+       assert(sharedWithName == null || sharedWithName != '');
 
   final String id;
   final String title;
   final int periodicityDays;
   final int initialStreakDays;
   final String userId;
+  final String? sharedWithName;
+
+  bool get isShared => sharedWithName != null;
 
   Habit copyWith({
     String? id,
@@ -25,6 +30,8 @@ class Habit {
     int? periodicityDays,
     int? initialStreakDays,
     String? userId,
+    String? sharedWithName,
+    bool clearSharedWithName = false,
   }) {
     return Habit(
       id: id ?? this.id,
@@ -32,6 +39,9 @@ class Habit {
       periodicityDays: periodicityDays ?? this.periodicityDays,
       initialStreakDays: initialStreakDays ?? this.initialStreakDays,
       userId: userId ?? this.userId,
+      sharedWithName: clearSharedWithName
+          ? null
+          : (sharedWithName ?? this.sharedWithName),
     );
   }
 
@@ -48,6 +58,10 @@ class Habit {
         'initialStreakDays',
       ),
       userId: parseRequiredString(map['userId'], 'userId'),
+      sharedWithName: parseNullableString(
+        map['sharedWithName'],
+        'sharedWithName',
+      ),
     );
   }
 
@@ -58,6 +72,7 @@ class Habit {
       'periodicityDays': periodicityDays,
       'initialStreakDays': initialStreakDays,
       'userId': userId,
+      'sharedWithName': sharedWithName,
     };
   }
 
@@ -70,11 +85,19 @@ class Habit {
             title == other.title &&
             periodicityDays == other.periodicityDays &&
             initialStreakDays == other.initialStreakDays &&
-            userId == other.userId;
+            userId == other.userId &&
+            sharedWithName == other.sharedWithName;
   }
 
   @override
   int get hashCode {
-    return Object.hash(id, title, periodicityDays, initialStreakDays, userId);
+    return Object.hash(
+      id,
+      title,
+      periodicityDays,
+      initialStreakDays,
+      userId,
+      sharedWithName,
+    );
   }
 }

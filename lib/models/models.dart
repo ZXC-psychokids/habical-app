@@ -1,6 +1,8 @@
 export 'user.dart';
 export 'category.dart';
 export 'event.dart';
+export 'friend_list_item.dart';
+export 'friend_invite_item.dart';
 export 'habit.dart';
 export 'habit_details_data.dart';
 export 'habit_list_item.dart';
