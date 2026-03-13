@@ -48,7 +48,7 @@ class _HabitDetailsView extends StatelessWidget {
 
         return Scaffold(
           backgroundColor: const Color(0xFFEDEDED),
-          appBar: AppBar(title: Text(data?.habit.title ?? 'Привычка')),
+          appBar: AppBar(),
           body: SafeArea(
             child: isInitialLoad
                 ? const Center(child: CircularProgressIndicator())
