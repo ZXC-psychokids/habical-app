@@ -86,17 +86,19 @@ class InMemoryAppStore {
     }
 
     var changed = false;
-    final updated = items.map((item) {
-      if (item.id != friendId || item.isConnected) {
-        return item;
-      }
-      changed = true;
-      return item.copyWith(
-        status: FriendRelationStatus.connected,
-        streakDays: 0,
-        clearSharedHabit: true,
-      );
-    }).toList(growable: false);
+    final updated = items
+        .map((item) {
+          if (item.id != friendId || item.isConnected) {
+            return item;
+          }
+          changed = true;
+          return item.copyWith(
+            status: FriendRelationStatus.connected,
+            streakDays: 0,
+            clearSharedHabit: true,
+          );
+        })
+        .toList(growable: false);
 
     if (!changed) {
       return false;
@@ -143,10 +145,7 @@ class InMemoryAppStore {
       throw StateError('Заявка не найдена.');
     }
 
-    incomingInvitesByUser = {
-      ...incomingInvitesByUser,
-      userId: updatedInvites,
-    };
+    incomingInvitesByUser = {...incomingInvitesByUser, userId: updatedInvites};
 
     final currentFriends = friendsByUser[userId] ?? const <FriendListItem>[];
     final alreadyExists = currentFriends.any(
@@ -155,6 +154,7 @@ class InMemoryAppStore {
     if (!alreadyExists) {
       final friend = FriendListItem(
         id: 'friend_${nextFriendId++}',
+        userId: acceptedInvite.fromUserId,
         name: acceptedInvite.fromName,
         status: FriendRelationStatus.connected,
         streakDays: 0,
@@ -189,19 +189,21 @@ class InMemoryAppStore {
     }
 
     var changed = false;
-    final updated = items.map((item) {
-      if (item.id != friendId) {
-        return item;
-      }
-      if (!item.isConnected) {
-        throw StateError('Сначала добавьте пользователя в друзья.');
-      }
-      changed = true;
-      return item.copyWith(
-        sharedHabitTitle: normalizedTitle,
-        streakDays: 0,
-      );
-    }).toList(growable: false);
+    final updated = items
+        .map((item) {
+          if (item.id != friendId) {
+            return item;
+          }
+          if (!item.isConnected) {
+            throw StateError('Сначала добавьте пользователя в друзья.');
+          }
+          changed = true;
+          return item.copyWith(
+            sharedHabitTitle: normalizedTitle,
+            streakDays: 0,
+          );
+        })
+        .toList(growable: false);
 
     if (!changed) {
       throw StateError('Друг не найден.');
@@ -212,6 +214,11 @@ class InMemoryAppStore {
     _upsertSharedHabitForFriend(
       userId: userId,
       friendName: friend.name,
+      title: normalizedTitle,
+    );
+    _upsertSharedHabitForFriend(
+      userId: friend.userId,
+      friendName: _labelForUser(userId),
       title: normalizedTitle,
     );
     _prependFriendFeed(
@@ -227,13 +234,15 @@ class InMemoryAppStore {
 
     for (final entry in tasksByHabit.entries) {
       final list = entry.value;
-      updated[entry.key] = list.map((task) {
-        if (task.id != taskId) {
-          return task;
-        }
-        toggled = true;
-        return task.copyWith(isCompleted: !task.isCompleted);
-      }).toList(growable: false);
+      updated[entry.key] = list
+          .map((task) {
+            if (task.id != taskId) {
+              return task;
+            }
+            toggled = true;
+            return task.copyWith(isCompleted: !task.isCompleted);
+          })
+          .toList(growable: false);
     }
 
     if (toggled) {
@@ -300,6 +309,54 @@ class InMemoryAppStore {
       ),
     ];
 
+    habits = [
+      ...habits,
+      const Habit(
+        id: 'habit_4',
+        title: 'Отжимания',
+        periodicityDays: 1,
+        initialStreakDays: 0,
+        userId: 'user_kirill',
+      ),
+      const Habit(
+        id: 'habit_5',
+        title: 'Холодный душ',
+        periodicityDays: 1,
+        initialStreakDays: 0,
+        userId: 'user_kirill',
+      ),
+      const Habit(
+        id: 'habit_6',
+        title: 'Утренняя пробежка',
+        periodicityDays: 1,
+        initialStreakDays: 0,
+        userId: 'user_liza',
+      ),
+      const Habit(
+        id: 'habit_7',
+        title: 'Чтение',
+        periodicityDays: 1,
+        initialStreakDays: 0,
+        userId: 'user_anya',
+      ),
+      const Habit(
+        id: 'habit_8',
+        title: 'Футбол',
+        periodicityDays: 1,
+        initialStreakDays: 0,
+        userId: 'user_kirill',
+        sharedWithName: 'Вы',
+      ),
+      const Habit(
+        id: 'habit_9',
+        title: 'Сон 8 часов',
+        periodicityDays: 1,
+        initialStreakDays: 0,
+        userId: 'user_anya',
+        sharedWithName: 'Вы',
+      ),
+    ];
+
     tasksByHabit = {
       'habit_1': generateTasksForPeriod(
         habit: habits[0],
@@ -328,10 +385,107 @@ class InMemoryAppStore {
         days: 42,
         completedDays: {today.subtract(const Duration(days: 1))},
       ),
+      'habit_4': generateTasksForPeriod(
+        habit: habits[3],
+        startDay: startDay,
+        days: 42,
+        completedDays: {
+          today,
+          today.subtract(const Duration(days: 1)),
+          today.subtract(const Duration(days: 2)),
+          today.subtract(const Duration(days: 3)),
+          today.subtract(const Duration(days: 4)),
+          today.subtract(const Duration(days: 5)),
+          today.subtract(const Duration(days: 6)),
+          today.subtract(const Duration(days: 7)),
+          today.subtract(const Duration(days: 8)),
+          today.subtract(const Duration(days: 9)),
+        },
+      ),
+      'habit_5': generateTasksForPeriod(
+        habit: habits[4],
+        startDay: startDay,
+        days: 42,
+        completedDays: {today.subtract(const Duration(days: 1))},
+      ),
+      'habit_6': generateTasksForPeriod(
+        habit: habits[5],
+        startDay: startDay,
+        days: 42,
+        completedDays: {
+          today,
+          today.subtract(const Duration(days: 1)),
+          today.subtract(const Duration(days: 2)),
+        },
+      ),
+      'habit_7': generateTasksForPeriod(
+        habit: habits[6],
+        startDay: startDay,
+        days: 42,
+        completedDays: {
+          today,
+          today.subtract(const Duration(days: 1)),
+          today.subtract(const Duration(days: 2)),
+          today.subtract(const Duration(days: 3)),
+          today.subtract(const Duration(days: 4)),
+          today.subtract(const Duration(days: 5)),
+          today.subtract(const Duration(days: 6)),
+          today.subtract(const Duration(days: 7)),
+          today.subtract(const Duration(days: 8)),
+          today.subtract(const Duration(days: 9)),
+          today.subtract(const Duration(days: 10)),
+          today.subtract(const Duration(days: 11)),
+          today.subtract(const Duration(days: 12)),
+          today.subtract(const Duration(days: 13)),
+          today.subtract(const Duration(days: 14)),
+          today.subtract(const Duration(days: 15)),
+          today.subtract(const Duration(days: 16)),
+          today.subtract(const Duration(days: 17)),
+          today.subtract(const Duration(days: 18)),
+          today.subtract(const Duration(days: 19)),
+          today.subtract(const Duration(days: 20)),
+          today.subtract(const Duration(days: 21)),
+          today.subtract(const Duration(days: 22)),
+          today.subtract(const Duration(days: 23)),
+          today.subtract(const Duration(days: 24)),
+          today.subtract(const Duration(days: 25)),
+          today.subtract(const Duration(days: 26)),
+          today.subtract(const Duration(days: 27)),
+          today.subtract(const Duration(days: 28)),
+          today.subtract(const Duration(days: 29)),
+        },
+      ),
+      'habit_8': generateTasksForPeriod(
+        habit: habits[7],
+        startDay: startDay,
+        days: 42,
+        completedDays: {
+          today,
+          today.subtract(const Duration(days: 1)),
+          today.subtract(const Duration(days: 2)),
+          today.subtract(const Duration(days: 3)),
+        },
+      ),
+      'habit_9': generateTasksForPeriod(
+        habit: habits[8],
+        startDay: startDay,
+        days: 42,
+        completedDays: {
+          today,
+          today.subtract(const Duration(days: 1)),
+          today.subtract(const Duration(days: 2)),
+        },
+      ),
     };
 
     final habit1TaskTodayId = _taskIdForDay(habitId: 'habit_1', day: today);
     final habit3TaskTodayId = _taskIdForDay(habitId: 'habit_3', day: today);
+    final habit4TaskTodayId = _taskIdForDay(habitId: 'habit_4', day: today);
+    final habit5TaskTodayId = _taskIdForDay(habitId: 'habit_5', day: today);
+    final habit6TaskTodayId = _taskIdForDay(habitId: 'habit_6', day: today);
+    final habit7TaskTodayId = _taskIdForDay(habitId: 'habit_7', day: today);
+    final habit8TaskTodayId = _taskIdForDay(habitId: 'habit_8', day: today);
+    final habit9TaskTodayId = _taskIdForDay(habitId: 'habit_9', day: today);
 
     events = [
       HomeEventItem(
@@ -380,12 +534,85 @@ class InMemoryAppStore {
         categoryName: 'Саморазвитие',
         categoryColorValue: 0xFFFF9800,
       ),
+      HomeEventItem(
+        event: Event(
+          id: 'event_5',
+          title: 'Тренировка по боксу',
+          startsAt: today.add(const Duration(hours: 7)),
+          endsAt: today.add(const Duration(hours: 8)),
+          userId: 'user_kirill',
+          taskId: habit4TaskTodayId,
+        ),
+        categoryName: 'Спорт',
+        categoryColorValue: 0xFF4CAF50,
+      ),
+      HomeEventItem(
+        event: Event(
+          id: 'event_6',
+          title: 'Встреча с куратором',
+          startsAt: today.add(const Duration(hours: 9)),
+          endsAt: today.add(const Duration(hours: 10)),
+          userId: 'user_kirill',
+          taskId: habit5TaskTodayId,
+        ),
+        categoryName: 'Учёба',
+        categoryColorValue: 0xFF42A5F5,
+      ),
+      HomeEventItem(
+        event: Event(
+          id: 'event_7',
+          title: 'Йога',
+          startsAt: today.add(const Duration(hours: 20)),
+          endsAt: today.add(const Duration(hours: 21)),
+          userId: 'user_anya',
+          taskId: habit7TaskTodayId,
+        ),
+        categoryName: 'Здоровье',
+        categoryColorValue: 0xFFF44336,
+      ),
+      HomeEventItem(
+        event: Event(
+          id: 'event_8',
+          title: 'Занятие английским',
+          startsAt: today.add(const Duration(hours: 7)),
+          endsAt: today.add(const Duration(hours: 8)),
+          userId: 'user_liza',
+          taskId: habit6TaskTodayId,
+        ),
+        categoryName: 'Учёба',
+        categoryColorValue: 0xFF42A5F5,
+      ),
+      HomeEventItem(
+        event: Event(
+          id: 'event_9',
+          title: 'Рабочий звонок',
+          startsAt: today.add(const Duration(hours: 18)),
+          endsAt: today.add(const Duration(hours: 19)),
+          userId: 'user_kirill',
+          taskId: habit8TaskTodayId,
+        ),
+        categoryName: 'Работа',
+        categoryColorValue: 0xFFFF9800,
+      ),
+      HomeEventItem(
+        event: Event(
+          id: 'event_10',
+          title: 'Консультация',
+          startsAt: today.add(const Duration(hours: 22)),
+          endsAt: today.add(const Duration(hours: 23)),
+          userId: 'user_anya',
+          taskId: habit9TaskTodayId,
+        ),
+        categoryName: 'Учёба',
+        categoryColorValue: 0xFF42A5F5,
+      ),
     ];
 
     friendsByUser = {
       'user_me': const [
         FriendListItem(
           id: 'friend_1',
+          userId: 'user_kirill',
           name: 'Кирилл',
           status: FriendRelationStatus.connected,
           streakDays: 0,
@@ -393,6 +620,7 @@ class InMemoryAppStore {
         ),
         FriendListItem(
           id: 'friend_2',
+          userId: 'user_liza',
           name: 'Лиза',
           status: FriendRelationStatus.connected,
           streakDays: 0,
@@ -400,6 +628,7 @@ class InMemoryAppStore {
         ),
         FriendListItem(
           id: 'friend_3',
+          userId: 'user_anya',
           name: 'Аня',
           status: FriendRelationStatus.connected,
           streakDays: 0,
@@ -498,15 +727,17 @@ class InMemoryAppStore {
 
     final existingHabit = existing;
 
-    habits = habits.map((habit) {
-      if (habit.id != existingHabit.id) {
-        return habit;
-      }
-      return habit.copyWith(
-        title: normalizedTitle,
-        sharedWithName: friendName,
-      );
-    }).toList(growable: false);
+    habits = habits
+        .map((habit) {
+          if (habit.id != existingHabit.id) {
+            return habit;
+          }
+          return habit.copyWith(
+            title: normalizedTitle,
+            sharedWithName: friendName,
+          );
+        })
+        .toList(growable: false);
 
     tasksByHabit.putIfAbsent(
       existingHabit.id,
@@ -547,6 +778,22 @@ class InMemoryAppStore {
       }
     }
     return null;
+  }
+
+  String _labelForUser(String userId) {
+    if (userId == 'user_me') {
+      return 'Вы';
+    }
+
+    for (final list in friendsByUser.values) {
+      for (final item in list) {
+        if (item.userId == userId) {
+          return item.name;
+        }
+      }
+    }
+
+    return 'Друг';
   }
 
   bool _isSameDay(DateTime a, DateTime b) {
