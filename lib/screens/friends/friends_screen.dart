@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../cubits/friends/friends_cubit.dart';
@@ -6,6 +6,7 @@ import '../../cubits/friends/friends_state.dart';
 import '../../models/friend_invite_item.dart';
 import '../../models/friend_list_item.dart';
 import '../../repositories/friends_repository.dart';
+import '../home/home_screen.dart';
 
 class FriendsScreen extends StatelessWidget {
   const FriendsScreen({
@@ -34,6 +35,23 @@ class FriendsScreen extends StatelessWidget {
 class _FriendsView extends StatelessWidget {
   const _FriendsView();
 
+  Future<void> _openFriendHome(
+    BuildContext context,
+    FriendListItem item,
+  ) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => HomeScreen(
+          currentUserId: item.userId,
+          showFriendsBlock: false,
+          canToggleTasks: false,
+          showAppBar: true,
+          appBarTitle: item.name,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return BlocConsumer<FriendsCubit, FriendsState>(
@@ -48,9 +66,9 @@ class _FriendsView extends StatelessWidget {
 
         final info = state.infoMessage;
         if (info != null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(info)),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(info)));
           context.read<FriendsCubit>().clearInfo();
         }
       },
@@ -69,10 +87,8 @@ class _FriendsView extends StatelessWidget {
                 children: [
                   _Header(
                     inviteCount: state.incomingInvites.length,
-                    onInvitesTap: () => _openInvitesDialog(
-                      context,
-                      state.incomingInvites,
-                    ),
+                    onInvitesTap: () =>
+                        _openInvitesDialog(context, state.incomingInvites),
                   ),
                   const SizedBox(height: 14),
                   if (isInitialLoad)
@@ -86,7 +102,10 @@ class _FriendsView extends StatelessWidget {
                     ...state.items.map(
                       (item) => Padding(
                         padding: const EdgeInsets.only(bottom: 10),
-                        child: _FriendCard(item: item),
+                        child: _FriendCard(
+                          item: item,
+                          onTap: () => _openFriendHome(context, item),
+                        ),
                       ),
                     ),
                   const SizedBox(height: 8),
@@ -133,9 +152,7 @@ class _FriendsView extends StatelessWidget {
               controller: controller,
               autofocus: true,
               keyboardType: TextInputType.emailAddress,
-              decoration: const InputDecoration(
-                hintText: 'Введите email',
-              ),
+              decoration: const InputDecoration(hintText: 'Введите email'),
             ),
             actions: [
               TextButton(
@@ -207,10 +224,7 @@ class _FriendsView extends StatelessWidget {
 }
 
 class _Header extends StatelessWidget {
-  const _Header({
-    required this.inviteCount,
-    required this.onInvitesTap,
-  });
+  const _Header({required this.inviteCount, required this.onInvitesTap});
 
   final int inviteCount;
   final VoidCallback onInvitesTap;
@@ -265,10 +279,7 @@ class _Header extends StatelessWidget {
 }
 
 class _InviteRow extends StatelessWidget {
-  const _InviteRow({
-    required this.invite,
-    required this.onAccept,
-  });
+  const _InviteRow({required this.invite, required this.onAccept});
 
   final FriendInviteItem invite;
   final VoidCallback onAccept;
@@ -306,10 +317,7 @@ class _InviteRow extends StatelessWidget {
               ],
             ),
           ),
-          ElevatedButton(
-            onPressed: onAccept,
-            child: const Text('Принять'),
-          ),
+          ElevatedButton(onPressed: onAccept, child: const Text('Принять')),
         ],
       ),
     );
@@ -317,63 +325,74 @@ class _InviteRow extends StatelessWidget {
 }
 
 class _FriendCard extends StatelessWidget {
-  const _FriendCard({required this.item});
+  const _FriendCard({required this.item, required this.onTap});
 
   final FriendListItem item;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF3F3F3),
+    return Material(
+      color: const Color(0xFFF3F3F3),
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0x1A000000)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x14000000),
-            blurRadius: 6,
-            offset: Offset(0, 1),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0x1A000000)),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x14000000),
+                blurRadius: 6,
+                offset: Offset(0, 1),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              color: const Color(0xFFE2E2E2),
-              shape: BoxShape.circle,
-              border: Border.all(color: const Color(0x66000000)),
-            ),
-            child: const Icon(Icons.person_outline, color: Color(0xFF444444)),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  item.name,
-                  style: const TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w700,
-                  ),
+          child: Row(
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE2E2E2),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: const Color(0x66000000)),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  _subtitle(),
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Color(0xFF4D4D4D),
-                  ),
+                child: const Icon(
+                  Icons.person_outline,
+                  color: Color(0xFF444444),
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      item.name,
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      _subtitle(),
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Color(0xFF4D4D4D),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              _TrailingAction(item: item),
+            ],
           ),
-          _TrailingAction(item: item),
-        ],
+        ),
       ),
     );
   }
@@ -418,10 +437,7 @@ class _TrailingAction extends StatelessWidget {
         const Icon(Icons.local_fire_department, size: 26),
         Text(
           item.streakLabel,
-          style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
-          ),
+          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
         ),
       ],
     );
@@ -440,9 +456,7 @@ class _TrailingAction extends StatelessWidget {
             content: TextField(
               controller: controller,
               autofocus: true,
-              decoration: const InputDecoration(
-                hintText: 'Название привычки',
-              ),
+              decoration: const InputDecoration(hintText: 'Название привычки'),
             ),
             actions: [
               TextButton(

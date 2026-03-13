@@ -1,23 +1,21 @@
-enum FriendRelationStatus {
-  connected,
-  suggestion,
-}
+enum FriendRelationStatus { connected, suggestion }
 
 class FriendListItem {
   const FriendListItem({
     required this.id,
+    required this.userId,
     required this.name,
     required this.status,
     required this.streakDays,
     this.sharedHabitTitle,
   }) : assert(id != ''),
+       assert(userId != ''),
        assert(name != ''),
        assert(streakDays >= 0),
-       assert(
-         sharedHabitTitle == null || sharedHabitTitle != '',
-       );
+       assert(sharedHabitTitle == null || sharedHabitTitle != '');
 
   final String id;
+  final String userId;
   final String name;
   final FriendRelationStatus status;
   final int streakDays;
@@ -28,6 +26,7 @@ class FriendListItem {
 
   FriendListItem copyWith({
     String? id,
+    String? userId,
     String? name,
     FriendRelationStatus? status,
     int? streakDays,
@@ -36,6 +35,7 @@ class FriendListItem {
   }) {
     return FriendListItem(
       id: id ?? this.id,
+      userId: userId ?? this.userId,
       name: name ?? this.name,
       status: status ?? this.status,
       streakDays: streakDays ?? this.streakDays,

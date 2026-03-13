@@ -12,10 +12,18 @@ class HomeScreen extends StatelessWidget {
   const HomeScreen({
     super.key,
     this.currentUserId = 'user_me',
+    this.showFriendsBlock = true,
+    this.canToggleTasks = true,
+    this.showAppBar = false,
+    this.appBarTitle,
     HomeRepository? repository,
   }) : _repository = repository;
 
   final String currentUserId;
+  final bool showFriendsBlock;
+  final bool canToggleTasks;
+  final bool showAppBar;
+  final String? appBarTitle;
   final HomeRepository? _repository;
 
   @override
@@ -26,13 +34,28 @@ class HomeScreen extends StatelessWidget {
     return BlocProvider(
       create: (_) =>
           HomeCubit(repository: repository, userId: currentUserId)..loadHome(),
-      child: const _HomeView(),
+      child: _HomeView(
+        showFriendsBlock: showFriendsBlock,
+        canToggleTasks: canToggleTasks,
+        showAppBar: showAppBar,
+        appBarTitle: appBarTitle,
+      ),
     );
   }
 }
 
 class _HomeView extends StatelessWidget {
-  const _HomeView();
+  const _HomeView({
+    required this.showFriendsBlock,
+    required this.canToggleTasks,
+    required this.showAppBar,
+    required this.appBarTitle,
+  });
+
+  final bool showFriendsBlock;
+  final bool canToggleTasks;
+  final bool showAppBar;
+  final String? appBarTitle;
 
   @override
   Widget build(BuildContext context) {
@@ -53,6 +76,9 @@ class _HomeView extends StatelessWidget {
 
         return Scaffold(
           backgroundColor: const Color(0xFFEDEDED),
+          appBar: showAppBar
+              ? AppBar(title: Text(appBarTitle ?? 'Главная'))
+              : null,
           body: SafeArea(
             child: RefreshIndicator(
               onRefresh: () => context.read<HomeCubit>().loadHome(),
@@ -77,28 +103,31 @@ class _HomeView extends StatelessWidget {
                     _MainDayCard(
                       tasks: data?.tasks ?? const [],
                       events: data?.events ?? const [],
+                      canToggleTasks: canToggleTasks,
                       onToggleTask: (taskId) {
                         context.read<HomeCubit>().toggleTask(taskId);
                       },
                     ),
-                    const SizedBox(height: 28),
-                    const Text(
-                      'Друзья',
-                      style: TextStyle(
-                        fontSize: 32,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    if ((data?.feedItems ?? const []).isEmpty)
-                      const _EmptyFeedCard()
-                    else
-                      ...data!.feedItems.map(
-                        (item) => Padding(
-                          padding: const EdgeInsets.only(bottom: 14),
-                          child: _FeedCard(item: item),
+                    if (showFriendsBlock) ...[
+                      const SizedBox(height: 28),
+                      const Text(
+                        'Друзья',
+                        style: TextStyle(
+                          fontSize: 32,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
+                      const SizedBox(height: 14),
+                      if ((data?.feedItems ?? const []).isEmpty)
+                        const _EmptyFeedCard()
+                      else
+                        ...data!.feedItems.map(
+                          (item) => Padding(
+                            padding: const EdgeInsets.only(bottom: 14),
+                            child: _FeedCard(item: item),
+                          ),
+                        ),
+                    ],
                   ],
                 ],
               ),
@@ -145,11 +174,13 @@ class _MainDayCard extends StatelessWidget {
   const _MainDayCard({
     required this.tasks,
     required this.events,
+    required this.canToggleTasks,
     required this.onToggleTask,
   });
 
   final List<Task> tasks;
   final List<HomeEventItem> events;
+  final bool canToggleTasks;
   final ValueChanged<String> onToggleTask;
 
   @override
@@ -176,6 +207,7 @@ class _MainDayCard extends StatelessWidget {
             Expanded(
               child: _TasksColumn(
                 tasks: tasks,
+                canToggleTasks: canToggleTasks,
                 onToggleTask: onToggleTask,
               ),
             ),
@@ -184,9 +216,7 @@ class _MainDayCard extends StatelessWidget {
               margin: const EdgeInsets.symmetric(horizontal: 12),
               color: const Color(0x33000000),
             ),
-            Expanded(
-              child: _EventsColumn(events: events),
-            ),
+            Expanded(child: _EventsColumn(events: events)),
           ],
         ),
       ),
@@ -197,10 +227,12 @@ class _MainDayCard extends StatelessWidget {
 class _TasksColumn extends StatelessWidget {
   const _TasksColumn({
     required this.tasks,
+    required this.canToggleTasks,
     required this.onToggleTask,
   });
 
   final List<Task> tasks;
+  final bool canToggleTasks;
   final ValueChanged<String> onToggleTask;
 
   @override
@@ -217,7 +249,7 @@ class _TasksColumn extends StatelessWidget {
             padding: const EdgeInsets.only(bottom: 8),
             child: _TaskRow(
               task: task,
-              onChanged: () => onToggleTask(task.id),
+              onChanged: canToggleTasks ? () => onToggleTask(task.id) : null,
             ),
           ),
         ),
@@ -252,13 +284,10 @@ class _EventsColumn extends StatelessWidget {
 }
 
 class _TaskRow extends StatelessWidget {
-  const _TaskRow({
-    required this.task,
-    required this.onChanged,
-  });
+  const _TaskRow({required this.task, required this.onChanged});
 
   final Task task;
-  final VoidCallback onChanged;
+  final VoidCallback? onChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -269,7 +298,7 @@ class _TaskRow extends StatelessWidget {
           height: 24,
           child: Checkbox(
             value: task.isCompleted,
-            onChanged: (_) => onChanged(),
+            onChanged: onChanged == null ? null : (_) => onChanged!(),
             side: const BorderSide(color: Colors.black54),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(4),
@@ -390,10 +419,7 @@ class _FeedCard extends StatelessWidget {
           Expanded(
             child: Text(
               '${item.friendName} ${item.message}',
-              style: const TextStyle(
-                fontSize: 16,
-                height: 1.3,
-              ),
+              style: const TextStyle(fontSize: 16, height: 1.3),
             ),
           ),
         ],
