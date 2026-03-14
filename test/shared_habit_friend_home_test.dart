@@ -1,4 +1,4 @@
-import 'package:flutter_test/flutter_test.dart';
+﻿import 'package:flutter_test/flutter_test.dart';
 import 'package:habical/repositories/friends_repository.dart';
 import 'package:habical/repositories/home_repository.dart';
 import 'package:habical/repositories/in_memory_app_store.dart';
@@ -13,7 +13,7 @@ void main() {
     await friendsRepository.createSharedHabit(
       userId: 'user_me',
       friendId: 'friend_2',
-      title: 'Английский 20 минут',
+      title: 'Совместная привычка',
     );
 
     final day = DateTime(now.year, now.month, now.day);
@@ -23,7 +23,7 @@ void main() {
     );
 
     expect(
-      friendHome.tasks.any((task) => task.title == 'Английский 20 минут'),
+      friendHome.tasks.any((task) => task.title == 'Совместная привычка'),
       isTrue,
     );
   });
