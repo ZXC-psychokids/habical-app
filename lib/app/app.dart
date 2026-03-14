@@ -62,6 +62,7 @@ class _HabicalAppState extends State<HabicalApp> {
         theme: ThemeData(
           colorScheme: ColorScheme.fromSeed(seedColor: Colors.black),
           scaffoldBackgroundColor: const Color(0xFFF2F2F2),
+          fontFamily: 'Cera Pro',
         ),
         home: const RootScreen(),
       ),
