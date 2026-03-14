@@ -1,4 +1,4 @@
-import '../models/home_data.dart';
+﻿import '../models/home_data.dart';
 import '../models/home_event_item.dart';
 import '../models/task.dart';
 import 'home_repository.dart';
@@ -24,6 +24,9 @@ class HybridHomeRepository implements HomeRepository {
 
   late final Map<String, bool> _initialTaskStateById;
   late final Map<String, HomeEventItem> _initialEventById;
+  final Map<String, String> _remoteToLocalTaskId = {};
+  final Map<String, bool> _taskCompletionOverrideById = {};
+  final Map<String, bool> _lastKnownTaskStateById = {};
 
   @override
   Future<HomeData> fetchHomeData({
@@ -61,13 +64,35 @@ class HybridHomeRepository implements HomeRepository {
   Future<void> toggleTask({
     required String taskId,
   }) async {
+    final currentState = _lastKnownTaskStateById[taskId];
+    final toggledState = currentState == null ? null : !currentState;
+
     try {
       await _remoteRepository.toggleTask(taskId: taskId);
     } catch (_) {
-      // Для демо не валим сценарий.
     }
 
-    _store.toggleTaskById(taskId);
+    var toggledLocally = _store.toggleTaskById(taskId);
+    var effectiveState = toggledState;
+
+    if (!toggledLocally) {
+      final mappedLocalTaskId = _remoteToLocalTaskId[taskId];
+      if (mappedLocalTaskId != null) {
+        toggledLocally = _store.toggleTaskById(mappedLocalTaskId);
+        if (toggledLocally) {
+          final localTask = _findLocalTaskById(mappedLocalTaskId);
+          effectiveState = localTask?.isCompleted ?? toggledState;
+        }
+      }
+    } else {
+      final localTask = _findLocalTaskById(taskId);
+      effectiveState = localTask?.isCompleted ?? toggledState;
+    }
+
+    if (effectiveState != null) {
+      _taskCompletionOverrideById[taskId] = effectiveState;
+      _lastKnownTaskStateById[taskId] = effectiveState;
+    }
   }
 
   @override
@@ -160,7 +185,7 @@ class HybridHomeRepository implements HomeRepository {
         categoryColorValue: categoryColorValue,
       );
     } catch (_) {
-      // Для демо не валим сценарий.
+      // For demo we keep local update behavior even if backend fails.
     }
 
     _store.updateEvent(
@@ -188,8 +213,15 @@ class HybridHomeRepository implements HomeRepository {
     required String userId,
     required DateTime day,
   }) {
-    final byId = {
-      for (final task in remoteTasks) task.id: task,
+    final byId = <String, Task>{
+      for (final task in remoteTasks)
+        task.id: _taskCompletionOverrideById[task.id] == null
+            ? task
+            : task.copyWith(isCompleted: _taskCompletionOverrideById[task.id]!),
+    };
+
+    final remoteByMatchKey = {
+      for (final task in remoteTasks) _taskMatchKey(task): task,
     };
 
     final currentLocalTasks = _store.tasksForUser(userId).where((task) {
@@ -197,6 +229,11 @@ class HybridHomeRepository implements HomeRepository {
     });
 
     for (final task in currentLocalTasks) {
+      final matchedRemoteTask = remoteByMatchKey[_taskMatchKey(task)];
+      if (matchedRemoteTask != null && matchedRemoteTask.id != task.id) {
+        _remoteToLocalTaskId[matchedRemoteTask.id] = task.id;
+      }
+
       final initialCompleted = _initialTaskStateById[task.id];
 
       if (initialCompleted == null) {
@@ -205,7 +242,16 @@ class HybridHomeRepository implements HomeRepository {
       }
 
       if (initialCompleted != task.isCompleted) {
-        byId[task.id] = task;
+        if (matchedRemoteTask != null) {
+          byId[matchedRemoteTask.id] = matchedRemoteTask.copyWith(
+            title: task.title,
+            startsAt: task.startsAt,
+            endsAt: task.endsAt,
+            isCompleted: task.isCompleted,
+          );
+        } else {
+          byId[task.id] = task;
+        }
       }
     }
 
@@ -216,6 +262,10 @@ class HybridHomeRepository implements HomeRepository {
         }
         return a.isCompleted ? 1 : -1;
       });
+
+    for (final task in merged) {
+      _lastKnownTaskStateById[task.id] = task.isCompleted;
+    }
 
     return merged;
   }
@@ -270,6 +320,22 @@ class HybridHomeRepository implements HomeRepository {
         a.event.taskId == b.event.taskId &&
         a.categoryName == b.categoryName &&
         a.categoryColorValue == b.categoryColorValue;
+  }
+
+  String _taskMatchKey(Task task) {
+    final normalizedTitle = task.title.trim().toLowerCase();
+    return '$normalizedTitle|${task.startsAt.hour}:${task.startsAt.minute}|${task.endsAt.hour}:${task.endsAt.minute}';
+  }
+
+  Task? _findLocalTaskById(String taskId) {
+    for (final tasks in _store.tasksByHabit.values) {
+      for (final task in tasks) {
+        if (task.id == taskId) {
+          return task;
+        }
+      }
+    }
+    return null;
   }
 
   String _repeatUnitKey(EventRepeatUnit unit) {

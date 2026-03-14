@@ -1,4 +1,4 @@
-import '../models/friend_invite_item.dart';
+﻿import '../models/friend_invite_item.dart';
 import '../models/friend_list_item.dart';
 import 'friends_repository.dart';
 import 'in_memory_app_store.dart';
@@ -13,6 +13,9 @@ class HybridFriendsRepository implements FriendsRepository {
   final FriendsRepository _remoteRepository;
   final InMemoryAppStore _store;
 
+  final Map<String, String> _friendUserIdByAnyId = {};
+  final Map<String, String> _friendNameByUserId = {};
+
   @override
   Future<List<FriendListItem>> fetchFriends({required String userId}) async {
     final remoteItems = await _remoteRepository.fetchFriends(userId: userId);
@@ -22,9 +25,15 @@ class HybridFriendsRepository implements FriendsRepository {
 
     for (final item in remoteItems) {
       byUserId[item.userId] = item;
+      _friendUserIdByAnyId[item.id] = item.userId;
+      _friendUserIdByAnyId[item.userId] = item.userId;
+      _friendNameByUserId[item.userId] = item.name;
     }
     for (final item in localItems) {
       byUserId[item.userId] = item;
+      _friendUserIdByAnyId[item.id] = item.userId;
+      _friendUserIdByAnyId[item.userId] = item.userId;
+      _friendNameByUserId[item.userId] = item.name;
     }
 
     final merged = byUserId.values.toList(growable: false)
@@ -101,10 +110,16 @@ class HybridFriendsRepository implements FriendsRepository {
     required String friendId,
     required String title,
   }) async {
+    final friendUserId = _friendUserIdByAnyId[friendId] ?? friendId;
+    final localFriendId = _ensureLocalFriend(
+      ownerUserId: userId,
+      friendUserId: friendUserId,
+    );
+
     try {
       await _remoteRepository.createSharedHabit(
         userId: userId,
-        friendId: friendId,
+        friendId: friendUserId,
         title: title,
       );
     } catch (_) {
@@ -113,8 +128,39 @@ class HybridFriendsRepository implements FriendsRepository {
 
     _store.createSharedHabit(
       userId: userId,
-      friendId: friendId,
+      friendId: localFriendId,
       title: title,
     );
+  }
+
+  String _ensureLocalFriend({
+    required String ownerUserId,
+    required String friendUserId,
+  }) {
+    final items = _store.friendsByUser[ownerUserId] ?? const <FriendListItem>[];
+    for (final item in items) {
+      if (item.userId == friendUserId) {
+        return item.id;
+      }
+    }
+
+    final generatedId = 'friend_${_store.nextFriendId++}';
+    final name = _friendNameByUserId[friendUserId] ?? 'Друг';
+
+    final created = FriendListItem(
+      id: generatedId,
+      userId: friendUserId,
+      name: name,
+      status: FriendRelationStatus.connected,
+      streakDays: 0,
+      sharedHabitTitle: null,
+    );
+
+    _store.friendsByUser = {
+      ..._store.friendsByUser,
+      ownerUserId: [...items, created],
+    };
+
+    return generatedId;
   }
 }
