@@ -117,38 +117,32 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 onPrevious: () => _shift(-1),
                 onNext: () => _shift(1),
               ),
-              if (widget.scale == CalendarScale.schedule)
-                Expanded(
-                  child: _ScheduleList(
+              Expanded(
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 240),
+                  switchInCurve: Curves.easeOutCubic,
+                  switchOutCurve: Curves.easeInCubic,
+                  transitionBuilder: (child, animation) {
+                    final slide = Tween<Offset>(
+                      begin: const Offset(0.02, 0),
+                      end: Offset.zero,
+                    ).animate(
+                      CurvedAnimation(
+                        parent: animation,
+                        curve: Curves.easeOutCubic,
+                      ),
+                    );
+                    return FadeTransition(
+                      opacity: animation,
+                      child: SlideTransition(position: slide, child: child),
+                    );
+                  },
+                  child: _buildScaleContent(
+                    visibleDays: visibleDays,
                     events: events,
-                    onTapEvent: _openEditEventSheet,
-                  ),
-                )
-              else if (widget.scale == CalendarScale.month)
-                Expanded(
-                  child: _MonthLikeBoard(
-                    days: visibleDays,
-                    events: events,
-                    focusDate: _focusDate,
-                    onTapEvent: (event) => _openDayFromMonthTap(event.startsAt),
-                    onTapDay: _openDayFromMonthTap,
-                  ),
-                )
-              else
-                Expanded(
-                  child: _WeekTimeGrid(
-                    days: visibleDays,
-                    hourHeight: _hourHeight,
-                    events: events,
-                    now: _now,
-                    onTapSlot: (startAt) {
-                      unawaited(
-                        _openQuickCreateEventSheet(initialStart: startAt),
-                      );
-                    },
-                    onTapEvent: _openEditEventSheet,
                   ),
                 ),
+              ),
               if (_isLoadingEvents)
                 const LinearProgressIndicator(
                   minHeight: 1.5,
@@ -176,6 +170,58 @@ class _CalendarScreenState extends State<CalendarScreen> {
         ),
       ),
     );
+  }
+
+  Widget _buildScaleContent({
+    required List<DateTime> visibleDays,
+    required List<CalendarEventCard> events,
+  }) {
+    final keySuffix = '${widget.scale.name}_${_dateKey(visibleDays.first)}';
+
+    if (widget.scale == CalendarScale.schedule) {
+      return KeyedSubtree(
+        key: ValueKey('schedule_$keySuffix'),
+        child: _ScheduleList(
+          events: events,
+          onTapEvent: _openEditEventSheet,
+        ),
+      );
+    }
+
+    if (widget.scale == CalendarScale.month) {
+      return KeyedSubtree(
+        key: ValueKey('month_${_focusDate.year}_${_focusDate.month}'),
+        child: _MonthLikeBoard(
+          days: visibleDays,
+          events: events,
+          focusDate: _focusDate,
+          onTapEvent: (event) => _openDayFromMonthTap(event.startsAt),
+          onTapDay: _openDayFromMonthTap,
+        ),
+      );
+    }
+
+    return KeyedSubtree(
+      key: ValueKey('grid_$keySuffix'),
+      child: _WeekTimeGrid(
+        days: visibleDays,
+        hourHeight: _hourHeight,
+        events: events,
+        now: _now,
+        onTapSlot: (startAt) {
+          unawaited(
+            _openQuickCreateEventSheet(initialStart: startAt),
+          );
+        },
+        onTapEvent: _openEditEventSheet,
+      ),
+    );
+  }
+
+  String _dateKey(DateTime value) {
+    final month = value.month.toString().padLeft(2, '0');
+    final day = value.day.toString().padLeft(2, '0');
+    return '${value.year}-$month-$day';
   }
 
   List<DateTime> _visibleDaysForScale() {
@@ -338,12 +384,16 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   Color _pastel(Color color) {
-    int blend(int channel) => ((channel + 255 * 3) ~/ 4).clamp(0, 255);
+    int blend(double channel) {
+      final base = (channel * 255.0).round().clamp(0, 255);
+      return ((base + 255 * 3) ~/ 4).clamp(0, 255);
+    }
+
     return Color.fromARGB(
       0xFF,
-      blend(color.red),
-      blend(color.green),
-      blend(color.blue),
+      blend(color.r),
+      blend(color.g),
+      blend(color.b),
     );
   }
 
@@ -391,7 +441,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
         startsAt: draft.startsAt,
         endsAt: draft.endsAt,
         repeatRule: draft.repeatRule,
-        categoryColorValue: draft.color.value,
+        categoryColorValue: draft.color.toARGB32(),
       );
       if (!mounted) {
         return;
@@ -501,7 +551,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
         title: draft.title,
         startsAt: draft.startsAt,
         endsAt: draft.endsAt,
-        categoryColorValue: draft.color.value,
+        categoryColorValue: draft.color.toARGB32(),
       );
 
       if (!draft.repeatRule.isNone) {
@@ -516,7 +566,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
           startsAt: nextStart,
           endsAt: nextStart.add(duration),
           repeatRule: draft.repeatRule,
-          categoryColorValue: draft.color.value,
+          categoryColorValue: draft.color.toARGB32(),
         );
       }
 
@@ -1430,6 +1480,7 @@ class _NotionQuickCreateEventSheet extends StatefulWidget {
 
 class _NotionQuickCreateEventSheetState
     extends State<_NotionQuickCreateEventSheet> {
+  static const _accentBlue = Color(0xFF0277BD);
   final TextEditingController _titleController = TextEditingController();
   late DateTime _start;
   late DateTime _end;
@@ -1529,7 +1580,8 @@ class _NotionQuickCreateEventSheetState
                 ),
                 const SizedBox(width: 10),
                 ..._palette.map((color) {
-                  final selected = color.value == _selectedColor.value;
+                  final selected =
+                      color.toARGB32() == _selectedColor.toARGB32();
                   return Padding(
                     padding: const EdgeInsets.only(right: 8),
                     child: InkWell(
@@ -1601,12 +1653,55 @@ class _NotionQuickCreateEventSheetState
     Color(0xFF8A77E8),
   ];
 
+  ThemeData _pickerTheme(BuildContext context) {
+    final baseTheme = Theme.of(context);
+    final blueScheme = ColorScheme.fromSeed(
+      seedColor: _accentBlue,
+      brightness: baseTheme.brightness,
+    ).copyWith(
+      surface: Colors.white,
+    );
+
+    return baseTheme.copyWith(
+      colorScheme: blueScheme,
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(foregroundColor: _accentBlue),
+      ),
+      datePickerTheme: const DatePickerThemeData(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        headerBackgroundColor: _accentBlue,
+        headerForegroundColor: Colors.white,
+      ),
+      timePickerTheme: const TimePickerThemeData(
+        backgroundColor: Colors.white,
+        dialBackgroundColor: Color(0xFFE3F2FD),
+        hourMinuteColor: Color(0xFFE3F2FD),
+        hourMinuteTextColor: Color(0xFF0D47A1),
+        dayPeriodColor: Color(0xFFE3F2FD),
+        dayPeriodTextColor: Color(0xFF0D47A1),
+        entryModeIconColor: _accentBlue,
+      ),
+      bottomSheetTheme: baseTheme.bottomSheetTheme.copyWith(
+        backgroundColor: Colors.white,
+        modalBackgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+      ),
+    );
+  }
+
   Future<void> _pickDate() async {
     final picked = await showDatePicker(
       context: context,
       initialDate: _start,
       firstDate: DateTime(2020),
       lastDate: DateTime(2100),
+      builder: (context, child) {
+        return Theme(
+          data: _pickerTheme(context),
+          child: child ?? const SizedBox.shrink(),
+        );
+      },
     );
     if (picked == null) {
       return;
@@ -1630,9 +1725,12 @@ class _NotionQuickCreateEventSheetState
       initialTime: TimeOfDay.fromDateTime(_start),
       builder: (context, child) {
         final mediaQuery = MediaQuery.of(context);
-        return MediaQuery(
-          data: mediaQuery.copyWith(alwaysUse24HourFormat: true),
-          child: child ?? const SizedBox.shrink(),
+        return Theme(
+          data: _pickerTheme(context),
+          child: MediaQuery(
+            data: mediaQuery.copyWith(alwaysUse24HourFormat: true),
+            child: child ?? const SizedBox.shrink(),
+          ),
         );
       },
     );
@@ -1658,9 +1756,12 @@ class _NotionQuickCreateEventSheetState
       initialTime: TimeOfDay.fromDateTime(_end),
       builder: (context, child) {
         final mediaQuery = MediaQuery.of(context);
-        return MediaQuery(
-          data: mediaQuery.copyWith(alwaysUse24HourFormat: true),
-          child: child ?? const SizedBox.shrink(),
+        return Theme(
+          data: _pickerTheme(context),
+          child: MediaQuery(
+            data: mediaQuery.copyWith(alwaysUse24HourFormat: true),
+            child: child ?? const SizedBox.shrink(),
+          ),
         );
       },
     );
@@ -1681,6 +1782,7 @@ class _NotionQuickCreateEventSheetState
   Future<void> _pickRepeatRule() async {
     final selected = await showModalBottomSheet<EventRepeatRule>(
       context: context,
+      backgroundColor: Colors.white,
       builder: (context) {
         const options = [
           EventRepeatRule.none,
@@ -1690,23 +1792,26 @@ class _NotionQuickCreateEventSheetState
           EventRepeatRule(unit: EventRepeatUnit.week, interval: 2),
           EventRepeatRule(unit: EventRepeatUnit.month, interval: 1),
         ];
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: options
-                .map((rule) {
-                  final selected =
-                      rule.unit == _repeatRule.unit &&
-                      rule.interval == _repeatRule.interval;
-                  return ListTile(
-                    title: Text(_repeatLabel(rule)),
-                    trailing: selected
-                        ? const Icon(Icons.check, color: Color(0xFF1F2937))
-                        : null,
-                    onTap: () => Navigator.of(context).pop(rule),
-                  );
-                })
-                .toList(growable: false),
+        return Theme(
+          data: _pickerTheme(context),
+          child: SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: options
+                  .map((rule) {
+                    final selected =
+                        rule.unit == _repeatRule.unit &&
+                        rule.interval == _repeatRule.interval;
+                    return ListTile(
+                      title: Text(_repeatLabel(rule)),
+                      trailing: selected
+                          ? const Icon(Icons.check, color: _accentBlue)
+                          : null,
+                      onTap: () => Navigator.of(context).pop(rule),
+                    );
+                  })
+                  .toList(growable: false),
+            ),
           ),
         );
       },

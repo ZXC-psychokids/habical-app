@@ -20,7 +20,7 @@ class InMemoryAppStore {
   late List<HomeFeedItem> feedItems;
   late Map<String, List<FriendListItem>> friendsByUser;
   late Map<String, List<FriendInviteItem>> incomingInvitesByUser;
-  late Map<String, _EventSeriesMeta> eventSeriesByEventId;
+  late Map<String, _EventSeriesMeta> _eventSeriesByEventId;
   int nextHabitId = 1;
   int nextFriendId = 1;
   int nextEventId = 1;
@@ -128,7 +128,7 @@ class InMemoryAppStore {
 
     events = [...events, ...created];
     for (final item in created) {
-      eventSeriesByEventId[item.event.id] = _EventSeriesMeta(
+      _eventSeriesByEventId[item.event.id] = _EventSeriesMeta(
         seriesId: seriesId,
         repeatUnitKey: repeatUnitKey,
       );
@@ -194,14 +194,14 @@ class InMemoryAppStore {
       throw StateError('Event not found.');
     }
 
-    final meta = eventSeriesByEventId[eventId];
+    final meta = _eventSeriesByEventId[eventId];
     if (meta == null ||
         !deleteFollowingInSeries ||
         meta.repeatUnitKey == 'none') {
       events = events
           .where((item) => item.event.id != eventId)
           .toList(growable: false);
-      eventSeriesByEventId.remove(eventId);
+      _eventSeriesByEventId.remove(eventId);
       return;
     }
 
@@ -209,7 +209,7 @@ class InMemoryAppStore {
     final threshold = target.event.startsAt;
     final idsToDelete = <String>{};
     for (final item in events) {
-      final itemMeta = eventSeriesByEventId[item.event.id];
+      final itemMeta = _eventSeriesByEventId[item.event.id];
       if (itemMeta == null || itemMeta.seriesId != seriesId) {
         continue;
       }
@@ -222,7 +222,7 @@ class InMemoryAppStore {
         .where((item) => !idsToDelete.contains(item.event.id))
         .toList(growable: false);
     for (final id in idsToDelete) {
-      eventSeriesByEventId.remove(id);
+      _eventSeriesByEventId.remove(id);
     }
   }
 
@@ -916,10 +916,10 @@ class InMemoryAppStore {
     nextHabitId = habits.length + 1;
     nextFriendId = 4;
     nextEventId = events.length + 1;
-    eventSeriesByEventId = {};
+    _eventSeriesByEventId = {};
     for (final item in events) {
       final seriesId = 'series_${nextSeriesId++}';
-      eventSeriesByEventId[item.event.id] = _EventSeriesMeta(
+      _eventSeriesByEventId[item.event.id] = _EventSeriesMeta(
         seriesId: seriesId,
         repeatUnitKey: 'none',
       );

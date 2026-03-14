@@ -7,6 +7,7 @@ import '../../models/home_feed_item.dart';
 import '../../models/home_event_item.dart';
 import '../../models/task.dart';
 import '../../repositories/home_repository.dart';
+import '../../widgets/appear_animations.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({
@@ -80,55 +81,82 @@ class _HomeView extends StatelessWidget {
               ? AppBar(title: Text(appBarTitle ?? 'Главная'))
               : null,
           body: SafeArea(
-            child: RefreshIndicator(
-              onRefresh: () => context.read<HomeCubit>().loadHome(),
-              child: ListView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
+            child: ScreenAppear(
+              child: Column(
                 children: [
-                  Text(
-                    _titleForDay(state.selectedDay),
-                    style: const TextStyle(
-                      fontSize: 32,
-                      fontWeight: FontWeight.w700,
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.fromLTRB(16, 20, 16, 20),
+                    color: const Color(0xFF0277BD),
+                    child: Text(
+                      _titleForDay(state.selectedDay),
+                      style: const TextStyle(
+                        fontSize: 32,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 20),
-                  if (isInitialLoad)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 32),
-                      child: Center(child: CircularProgressIndicator()),
-                    )
-                  else ...[
-                    _MainDayCard(
-                      tasks: data?.tasks ?? const [],
-                      events: data?.events ?? const [],
-                      canToggleTasks: canToggleTasks,
-                      onToggleTask: (taskId) {
-                        context.read<HomeCubit>().toggleTask(taskId);
-                      },
-                    ),
-                    if (showFriendsBlock) ...[
-                      const SizedBox(height: 28),
-                      const Text(
-                        'Друзья',
-                        style: TextStyle(
-                          fontSize: 32,
-                          fontWeight: FontWeight.w700,
-                        ),
+                  Expanded(
+                    child: RefreshIndicator(
+                      onRefresh: () => context.read<HomeCubit>().loadHome(),
+                      child: ListView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+                        children: [
+                          if (isInitialLoad)
+                            const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 32),
+                              child: Center(child: CircularProgressIndicator()),
+                            )
+                          else ...[
+                            DelayedAppear(
+                              delay: const Duration(milliseconds: 40),
+                              child: _MainDayCard(
+                                tasks: data?.tasks ?? const [],
+                                events: data?.events ?? const [],
+                                canToggleTasks: canToggleTasks,
+                                onToggleTask: (taskId) {
+                                  context.read<HomeCubit>().toggleTask(taskId);
+                                },
+                              ),
+                            ),
+                            if (showFriendsBlock) ...[
+                              const SizedBox(height: 28),
+                              const DelayedAppear(
+                                delay: Duration(milliseconds: 90),
+                                child: Text(
+                                  'Друзья',
+                                  style: TextStyle(
+                                    fontSize: 32,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 14),
+                              if ((data?.feedItems ?? const []).isEmpty)
+                                const DelayedAppear(
+                                  delay: Duration(milliseconds: 130),
+                                  child: _EmptyFeedCard(),
+                                )
+                              else
+                                ...data!.feedItems.asMap().entries.map(
+                                  (entry) => Padding(
+                                    padding: const EdgeInsets.only(bottom: 14),
+                                    child: DelayedAppear(
+                                      delay: Duration(
+                                        milliseconds: 130 + entry.key * 40,
+                                      ),
+                                      child: _FeedCard(item: entry.value),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ],
+                        ],
                       ),
-                      const SizedBox(height: 14),
-                      if ((data?.feedItems ?? const []).isEmpty)
-                        const _EmptyFeedCard()
-                      else
-                        ...data!.feedItems.map(
-                          (item) => Padding(
-                            padding: const EdgeInsets.only(bottom: 14),
-                            child: _FeedCard(item: item),
-                          ),
-                        ),
-                    ],
-                  ],
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -379,7 +407,7 @@ class _EventRow extends StatelessWidget {
       return '$h:$m';
     }
 
-    return '${f(start)}–${f(end)}';
+    return '${f(start)}-${f(end)}';
   }
 }
 

@@ -6,6 +6,7 @@ import '../../cubits/habits/habits_cubit.dart';
 import '../../cubits/habits/habits_state.dart';
 import '../../models/habit_list_item.dart';
 import '../../repositories/habits_repository.dart';
+import '../../widgets/appear_animations.dart';
 import 'create_habit_screen.dart';
 import 'habit_details_screen.dart';
 
@@ -85,52 +86,82 @@ class _HabitsView extends StatelessWidget {
         return Scaffold(
           backgroundColor: const Color(0xFFEDEDED),
           body: SafeArea(
-            child: RefreshIndicator(
-              onRefresh: () => context.read<HabitsCubit>().loadHabits(),
-              child: ListView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(16, 20, 16, 20),
+            child: ScreenAppear(
+              child: Column(
                 children: [
-                  const Text(
-                    'Привычки',
-                    style: TextStyle(fontSize: 34, fontWeight: FontWeight.w700),
-                  ),
-                  const SizedBox(height: 14),
-                  if (isInitialLoad)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 24),
-                      child: Center(child: CircularProgressIndicator()),
-                    )
-                  else if (state.items.isEmpty)
-                    const _EmptyHabitsCard()
-                  else
-                    ...state.items.map((item) {
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 10),
-                        child: _HabitCard(
-                          item: item,
-                          onTap: () => _openHabit(context, item),
-                        ),
-                      );
-                    }),
-                  const SizedBox(height: 8),
-                  SizedBox(
-                    height: 48,
-                    child: ElevatedButton(
-                      onPressed: () => _openCreateHabit(context),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFBEBEBE),
-                        foregroundColor: Colors.black,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.fromLTRB(16, 20, 16, 20),
+                    color: const Color(0xFF0277BD),
+                    child: const Text(
+                      'Привычки',
+                      style: TextStyle(
+                        fontSize: 34,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
                       ),
-                      child: const Text(
-                        'Добавить новую привычку',
-                        style: TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w600,
-                        ),
+                    ),
+                  ),
+                  Expanded(
+                    child: RefreshIndicator(
+                      onRefresh: () => context.read<HabitsCubit>().loadHabits(),
+                      child: ListView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: const EdgeInsets.fromLTRB(16, 14, 16, 20),
+                        children: [
+                          if (isInitialLoad)
+                            const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 24),
+                              child: Center(child: CircularProgressIndicator()),
+                            )
+                          else if (state.items.isEmpty)
+                            const DelayedAppear(
+                              delay: Duration(milliseconds: 70),
+                              child: _EmptyHabitsCard(),
+                            )
+                          else
+                            ...state.items.asMap().entries.map((entry) {
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 10),
+                                child: DelayedAppear(
+                                  delay: Duration(
+                                    milliseconds: 70 + entry.key * 40,
+                                  ),
+                                  child: _HabitCard(
+                                    item: entry.value,
+                                    onTap: () =>
+                                        _openHabit(context, entry.value),
+                                  ),
+                                ),
+                              );
+                            }),
+                          const SizedBox(height: 8),
+                          DelayedAppear(
+                            delay: Duration(
+                              milliseconds: 90 + state.items.length * 35,
+                            ),
+                            child: SizedBox(
+                              height: 48,
+                              child: ElevatedButton(
+                                onPressed: () => _openCreateHabit(context),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFFBEBEBE),
+                                  foregroundColor: Colors.black,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                ),
+                                child: const Text(
+                                  'Добавить новую привычку',
+                                  style: TextStyle(
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
