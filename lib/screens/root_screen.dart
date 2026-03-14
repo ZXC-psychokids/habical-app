@@ -36,15 +36,60 @@ class _RootViewState extends State<_RootView> {
     return BlocBuilder<NavigationCubit, NavigationState>(
       builder: (context, state) {
         return Scaffold(
-          body: _screenByTab(state.selectedTab),
+          body: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 260),
+            switchInCurve: Curves.easeOutCubic,
+            switchOutCurve: Curves.easeInCubic,
+            transitionBuilder: (child, animation) {
+              final slide = Tween<Offset>(
+                begin: const Offset(0, 0.025),
+                end: Offset.zero,
+              ).animate(
+                CurvedAnimation(
+                  parent: animation,
+                  curve: Curves.easeOutCubic,
+                ),
+              );
+              return FadeTransition(
+                opacity: animation,
+                child: SlideTransition(position: slide, child: child),
+              );
+            },
+            child: KeyedSubtree(
+              key: ValueKey(state.selectedTab),
+              child: _screenByTab(state.selectedTab),
+            ),
+          ),
           bottomNavigationBar: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (state.selectedTab == NavigationTab.calendar)
-                _CalendarScaleBar(
-                  selectedScale: _calendarScale,
-                  onTap: (scale) => setState(() => _calendarScale = scale),
-                ),
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 220),
+                switchInCurve: Curves.easeOutCubic,
+                switchOutCurve: Curves.easeInCubic,
+                transitionBuilder: (child, animation) {
+                  final slide = Tween<Offset>(
+                    begin: const Offset(0, 0.2),
+                    end: Offset.zero,
+                  ).animate(
+                    CurvedAnimation(
+                      parent: animation,
+                      curve: Curves.easeOutCubic,
+                    ),
+                  );
+                  return FadeTransition(
+                    opacity: animation,
+                    child: SlideTransition(position: slide, child: child),
+                  );
+                },
+                child: state.selectedTab == NavigationTab.calendar
+                    ? _CalendarScaleBar(
+                        key: const ValueKey('calendar_scale_bar'),
+                        selectedScale: _calendarScale,
+                        onTap: (scale) => setState(() => _calendarScale = scale),
+                      )
+                    : const SizedBox.shrink(key: ValueKey('no_scale_bar')),
+              ),
               _BottomNavigationBar(
                 selectedTab: state.selectedTab,
                 onTap: (tab) => context.read<NavigationCubit>().selectTab(tab),
@@ -75,7 +120,11 @@ class _RootViewState extends State<_RootView> {
 }
 
 class _CalendarScaleBar extends StatelessWidget {
-  const _CalendarScaleBar({required this.selectedScale, required this.onTap});
+  const _CalendarScaleBar({
+    super.key,
+    required this.selectedScale,
+    required this.onTap,
+  });
 
   final CalendarScale selectedScale;
   final ValueChanged<CalendarScale> onTap;
@@ -111,7 +160,8 @@ class _CalendarScaleBar extends StatelessWidget {
                       borderRadius: BorderRadius.circular(999),
                       onTap: () => onTap(scale),
                       child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 140),
+                        duration: const Duration(milliseconds: 180),
+                        curve: Curves.easeOutCubic,
                         padding: const EdgeInsets.symmetric(
                           horizontal: 6,
                           vertical: 6,
@@ -125,26 +175,34 @@ class _CalendarScaleBar extends StatelessWidget {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(
-                              scale.icon,
-                              size: 16,
-                              color: selected
-                                  ? const Color(0xFF0E2C4F)
-                                  : const Color(0xFF505050),
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              scale.label,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: selected
-                                    ? FontWeight.w700
-                                    : FontWeight.w500,
+                            AnimatedScale(
+                              duration: const Duration(milliseconds: 180),
+                              curve: Curves.easeOutCubic,
+                              scale: selected ? 1 : 0.9,
+                              child: Icon(
+                                scale.icon,
+                                size: 16,
                                 color: selected
                                     ? const Color(0xFF0E2C4F)
                                     : const Color(0xFF505050),
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            AnimatedDefaultTextStyle(
+                              duration: const Duration(milliseconds: 180),
+                              curve: Curves.easeOutCubic,
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight:
+                                    selected ? FontWeight.w700 : FontWeight.w500,
+                                color: selected
+                                    ? const Color(0xFF0E2C4F)
+                                    : const Color(0xFF505050),
+                              ),
+                              child: Text(
+                                scale.label,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
                           ],
@@ -228,6 +286,7 @@ class _BottomNavigationBar extends StatelessWidget {
                     label: item.label,
                     icon: isSelected ? item.activeIcon : item.inactiveIcon,
                     selected: isSelected,
+                    index: item.tab.index,
                     onTap: () => onTap(item.tab),
                   ),
                 );
@@ -258,12 +317,14 @@ class _NavItem extends StatelessWidget {
     required this.label,
     required this.icon,
     required this.selected,
+    required this.index,
     required this.onTap,
   });
 
   final String label;
   final IconData icon;
   final bool selected;
+  final int index;
   final VoidCallback onTap;
 
   @override
@@ -271,25 +332,41 @@ class _NavItem extends StatelessWidget {
     return InkWell(
       borderRadius: BorderRadius.circular(14),
       onTap: onTap,
-      child: Padding(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOutCubic,
+        margin: const EdgeInsets.symmetric(horizontal: 2),
         padding: const EdgeInsets.symmetric(vertical: 4),
+        decoration: BoxDecoration(
+          color: selected ? const Color(0x150277BD) : Colors.transparent,
+          borderRadius: BorderRadius.circular(14),
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              icon,
-              size: 22,
-              color: selected ? Colors.black : const Color(0xFF505050),
+            AnimatedScale(
+              duration: Duration(milliseconds: 170 + (index * 8)),
+              curve: Curves.easeOutCubic,
+              scale: selected ? 1 : 0.92,
+              child: Icon(
+                icon,
+                size: 22,
+                color: selected ? Colors.black : const Color(0xFF505050),
+              ),
             ),
             const SizedBox(height: 2),
-            Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+            AnimatedDefaultTextStyle(
+              duration: const Duration(milliseconds: 180),
+              curve: Curves.easeOutCubic,
               style: TextStyle(
                 fontSize: 10,
                 fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                 color: selected ? Colors.black : const Color(0xFF505050),
+              ),
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           ],

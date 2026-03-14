@@ -6,7 +6,21 @@ import '../../cubits/friends/friends_state.dart';
 import '../../models/friend_invite_item.dart';
 import '../../models/friend_list_item.dart';
 import '../../repositories/friends_repository.dart';
+import '../../widgets/appear_animations.dart';
 import '../home/home_screen.dart';
+
+const _kAccentBlue = Color(0xFF0277BD);
+
+ButtonStyle _dialogTextButtonStyle() {
+  return TextButton.styleFrom(foregroundColor: _kAccentBlue);
+}
+
+ButtonStyle _dialogFilledButtonStyle() {
+  return ElevatedButton.styleFrom(
+    backgroundColor: _kAccentBlue,
+    foregroundColor: Colors.white,
+  );
+}
 
 class FriendsScreen extends StatelessWidget {
   const FriendsScreen({
@@ -79,53 +93,79 @@ class _FriendsView extends StatelessWidget {
         return Scaffold(
           backgroundColor: const Color(0xFFEDEDED),
           body: SafeArea(
-            child: RefreshIndicator(
-              onRefresh: () => context.read<FriendsCubit>().loadFriends(),
-              child: ListView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(16, 20, 16, 20),
+            child: ScreenAppear(
+              child: Column(
                 children: [
-                  _Header(
-                    inviteCount: state.incomingInvites.length,
-                    onInvitesTap: () =>
-                        _openInvitesDialog(context, state.incomingInvites),
-                  ),
-                  const SizedBox(height: 14),
-                  if (isInitialLoad)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 24),
-                      child: Center(child: CircularProgressIndicator()),
-                    )
-                  else if (state.items.isEmpty)
-                    const _EmptyFriendsCard()
-                  else
-                    ...state.items.map(
-                      (item) => Padding(
-                        padding: const EdgeInsets.only(bottom: 10),
-                        child: _FriendCard(
-                          item: item,
-                          onTap: () => _openFriendHome(context, item),
-                        ),
-                      ),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.fromLTRB(16, 20, 16, 20),
+                    color: _kAccentBlue,
+                    child: _Header(
+                      inviteCount: state.incomingInvites.length,
+                      onInvitesTap: () =>
+                          _openInvitesDialog(context, state.incomingInvites),
                     ),
-                  const SizedBox(height: 8),
-                  SizedBox(
-                    height: 48,
-                    child: ElevatedButton(
-                      onPressed: () => _openInviteByEmailDialog(context),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFBEBEBE),
-                        foregroundColor: Colors.black,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                      child: const Text(
-                        'Добавить друга',
-                        style: TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w600,
-                        ),
+                  ),
+                  Expanded(
+                    child: RefreshIndicator(
+                      onRefresh: () => context.read<FriendsCubit>().loadFriends(),
+                      child: ListView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: const EdgeInsets.fromLTRB(16, 14, 16, 20),
+                        children: [
+                          if (isInitialLoad)
+                            const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 24),
+                              child: Center(child: CircularProgressIndicator()),
+                            )
+                          else if (state.items.isEmpty)
+                            const DelayedAppear(
+                              delay: Duration(milliseconds: 70),
+                              child: _EmptyFriendsCard(),
+                            )
+                          else
+                            ...state.items.asMap().entries.map(
+                              (entry) => Padding(
+                                padding: const EdgeInsets.only(bottom: 10),
+                                child: DelayedAppear(
+                                  delay: Duration(
+                                    milliseconds: 70 + entry.key * 40,
+                                  ),
+                                  child: _FriendCard(
+                                    item: entry.value,
+                                    onTap: () =>
+                                        _openFriendHome(context, entry.value),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          const SizedBox(height: 8),
+                          DelayedAppear(
+                            delay: Duration(
+                              milliseconds: 90 + state.items.length * 35,
+                            ),
+                            child: SizedBox(
+                              height: 48,
+                              child: ElevatedButton(
+                                onPressed: () => _openInviteByEmailDialog(context),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFFBEBEBE),
+                                  foregroundColor: Colors.black,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                ),
+                                child: const Text(
+                                  'Добавить друга',
+                                  style: TextStyle(
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -147,6 +187,7 @@ class _FriendsView extends StatelessWidget {
         context: context,
         builder: (dialogContext) {
           return AlertDialog(
+            backgroundColor: Colors.white,
             title: const Text('Пригласить друга'),
             content: TextField(
               controller: controller,
@@ -156,10 +197,12 @@ class _FriendsView extends StatelessWidget {
             ),
             actions: [
               TextButton(
+                style: _dialogTextButtonStyle(),
                 onPressed: () => Navigator.of(dialogContext).pop(false),
                 child: const Text('Отмена'),
               ),
               ElevatedButton(
+                style: _dialogFilledButtonStyle(),
                 onPressed: () => Navigator.of(dialogContext).pop(true),
                 child: const Text('Отправить инвайт'),
               ),
@@ -186,6 +229,7 @@ class _FriendsView extends StatelessWidget {
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
+          backgroundColor: Colors.white,
           title: const Text('Входящие заявки'),
           content: SizedBox(
             width: 360,
@@ -213,6 +257,7 @@ class _FriendsView extends StatelessWidget {
           ),
           actions: [
             TextButton(
+              style: _dialogTextButtonStyle(),
               onPressed: () => Navigator.of(dialogContext).pop(),
               child: const Text('Закрыть'),
             ),
@@ -236,7 +281,11 @@ class _Header extends StatelessWidget {
         const Expanded(
           child: Text(
             'Друзья',
-            style: TextStyle(fontSize: 34, fontWeight: FontWeight.w700),
+            style: TextStyle(
+              fontSize: 34,
+              fontWeight: FontWeight.w700,
+              color: Colors.white,
+            ),
           ),
         ),
         Stack(
@@ -245,7 +294,11 @@ class _Header extends StatelessWidget {
             IconButton(
               tooltip: 'Заявки',
               onPressed: onInvitesTap,
-              icon: const Icon(Icons.notifications_none, size: 30),
+              icon: const Icon(
+                Icons.notifications_none,
+                size: 30,
+                color: Colors.white,
+              ),
             ),
             if (inviteCount > 0)
               Positioned(
@@ -317,7 +370,11 @@ class _InviteRow extends StatelessWidget {
               ],
             ),
           ),
-          ElevatedButton(onPressed: onAccept, child: const Text('Принять')),
+          ElevatedButton(
+            style: _dialogFilledButtonStyle(),
+            onPressed: onAccept,
+            child: const Text('Принять'),
+          ),
         ],
       ),
     );
@@ -452,6 +509,7 @@ class _TrailingAction extends StatelessWidget {
         context: context,
         builder: (dialogContext) {
           return AlertDialog(
+            backgroundColor: Colors.white,
             title: Text('Совместная привычка: ${item.name}'),
             content: TextField(
               controller: controller,
@@ -460,10 +518,12 @@ class _TrailingAction extends StatelessWidget {
             ),
             actions: [
               TextButton(
+                style: _dialogTextButtonStyle(),
                 onPressed: () => Navigator.of(dialogContext).pop(false),
                 child: const Text('Отмена'),
               ),
               ElevatedButton(
+                style: _dialogFilledButtonStyle(),
                 onPressed: () => Navigator.of(dialogContext).pop(true),
                 child: const Text('Создать'),
               ),

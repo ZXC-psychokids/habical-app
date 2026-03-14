@@ -1,4 +1,6 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
+
+import '../../widgets/appear_animations.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -8,32 +10,57 @@ class SettingsScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: const Color(0xFFEDEDED),
       body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 20, 16, 20),
-          children: [
-            const Text(
-              'Настройки',
-              style: TextStyle(fontSize: 32, fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: 16),
-            const _SettingCard(
-              title: 'Имя пользователя',
-              value: 'Андрей',
-              leading: Icons.person_outline,
-            ),
-            const SizedBox(height: 10),
-            const _SettingCard(
-              title: 'Тема',
-              value: 'Светлая',
-              leading: Icons.light_mode_outlined,
-            ),
-            const SizedBox(height: 10),
-            const _SettingCard(
-              title: 'Язык',
-              value: 'Русский',
-              leading: Icons.language_outlined,
-            ),
-          ],
+        child: ScreenAppear(
+          child: Column(
+            children: [
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.fromLTRB(16, 20, 16, 20),
+                color: const Color(0xFF0277BD),
+                child: const Text(
+                  'Настройки',
+                  style: TextStyle(
+                    fontSize: 32,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
+                  children: const [
+                    DelayedAppear(
+                      delay: Duration(milliseconds: 70),
+                      child: _SettingCard(
+                        title: 'Имя пользователя',
+                        value: 'Андрей',
+                        leading: Icons.person_outline,
+                      ),
+                    ),
+                    SizedBox(height: 10),
+                    DelayedAppear(
+                      delay: Duration(milliseconds: 110),
+                      child: _SettingCard(
+                        title: 'Тема',
+                        value: 'Светлая',
+                        leading: Icons.light_mode_outlined,
+                      ),
+                    ),
+                    SizedBox(height: 10),
+                    DelayedAppear(
+                      delay: Duration(milliseconds: 150),
+                      child: _SettingCard(
+                        title: 'Язык',
+                        value: 'Русский',
+                        leading: Icons.language_outlined,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

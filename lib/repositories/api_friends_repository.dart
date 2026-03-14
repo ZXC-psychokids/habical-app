@@ -1,7 +1,6 @@
 import '../core/api_client.dart';
 import '../models/friend_invite_item.dart';
 import '../models/friend_list_item.dart';
-import '../models/habit.dart';
 import 'friends_repository.dart';
 
 class ApiFriendsRepository implements FriendsRepository {
