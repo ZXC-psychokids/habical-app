@@ -20,8 +20,11 @@ class InMemoryAppStore {
   late List<HomeFeedItem> feedItems;
   late Map<String, List<FriendListItem>> friendsByUser;
   late Map<String, List<FriendInviteItem>> incomingInvitesByUser;
+  late Map<String, _EventSeriesMeta> eventSeriesByEventId;
   int nextHabitId = 1;
   int nextFriendId = 1;
+  int nextEventId = 1;
+  int nextSeriesId = 1;
   final StreakService _streakService = const StreakService();
 
   Iterable<Task> tasksForUser(String userId) sync* {
@@ -31,6 +34,232 @@ class InMemoryAppStore {
       }
       yield* tasksByHabit[habit.id] ?? const <Task>[];
     }
+  }
+
+  Iterable<HomeEventItem> eventsForUserInRange({
+    required String userId,
+    required DateTime fromInclusive,
+    required DateTime toExclusive,
+  }) sync* {
+    for (final item in events) {
+      final startsAt = item.event.startsAt;
+      if (item.event.userId != userId) {
+        continue;
+      }
+      if (startsAt.isBefore(fromInclusive)) {
+        continue;
+      }
+      if (!startsAt.isBefore(toExclusive)) {
+        continue;
+      }
+      yield item;
+    }
+  }
+
+  HomeEventItem addEvent({
+    required String userId,
+    required String title,
+    required DateTime startsAt,
+    required DateTime endsAt,
+    required String repeatUnitKey,
+    required int repeatInterval,
+    required String categoryName,
+    required int categoryColorValue,
+  }) {
+    final normalizedTitle = title.trim();
+    if (normalizedTitle.isEmpty) {
+      throw ArgumentError(
+        '\u041d\u0430\u0437\u0432\u0430\u043d\u0438\u0435 \u0441\u043e\u0431\u044b\u0442\u0438\u044f \u043d\u0435 \u043c\u043e\u0436\u0435\u0442 \u0431\u044b\u0442\u044c \u043f\u0443\u0441\u0442\u044b\u043c.',
+      );
+    }
+    if (endsAt.isBefore(startsAt) || endsAt.isAtSameMomentAs(startsAt)) {
+      throw ArgumentError(
+        '\u0412\u0440\u0435\u043c\u044f \u043e\u043a\u043e\u043d\u0447\u0430\u043d\u0438\u044f \u0434\u043e\u043b\u0436\u043d\u043e \u0431\u044b\u0442\u044c \u043f\u043e\u0437\u0436\u0435 \u0432\u0440\u0435\u043c\u0435\u043d\u0438 \u043d\u0430\u0447\u0430\u043b\u0430.',
+      );
+    }
+    if (repeatInterval <= 0) {
+      throw ArgumentError('repeatInterval must be greater than zero.');
+    }
+    const allowedRepeatUnits = {'none', 'day', 'week', 'month'};
+    if (!allowedRepeatUnits.contains(repeatUnitKey)) {
+      throw ArgumentError('Unsupported repeat unit.');
+    }
+
+    final normalizedCategory = categoryName.trim().isEmpty
+        ? '\u041a\u0430\u043b\u0435\u043d\u0434\u0430\u0440\u044c'
+        : categoryName;
+    final eventDuration = endsAt.difference(startsAt);
+    final created = <HomeEventItem>[];
+    final seriesId = 'series_${nextSeriesId++}';
+    var occurrenceStart = startsAt;
+    final repeatEndLimit = startsAt.add(const Duration(days: 365));
+    final maxOccurrences = repeatUnitKey == 'none' ? 1 : 120;
+
+    for (var index = 0; index < maxOccurrences; index++) {
+      final occurrenceEnd = occurrenceStart.add(eventDuration);
+      final eventId = 'event_${nextEventId++}';
+      created.add(
+        HomeEventItem(
+          event: Event(
+            id: eventId,
+            title: normalizedTitle,
+            startsAt: occurrenceStart,
+            endsAt: occurrenceEnd,
+            userId: userId,
+          ),
+          categoryName: normalizedCategory,
+          categoryColorValue: categoryColorValue,
+        ),
+      );
+
+      if (repeatUnitKey == 'none') {
+        break;
+      }
+      final nextStart = _nextOccurrenceStart(
+        startsAt: occurrenceStart,
+        repeatUnitKey: repeatUnitKey,
+        repeatInterval: repeatInterval,
+      );
+      if (nextStart.isAfter(repeatEndLimit)) {
+        break;
+      }
+      occurrenceStart = nextStart;
+    }
+
+    events = [...events, ...created];
+    for (final item in created) {
+      eventSeriesByEventId[item.event.id] = _EventSeriesMeta(
+        seriesId: seriesId,
+        repeatUnitKey: repeatUnitKey,
+      );
+    }
+    return created.first;
+  }
+
+  void updateEvent({
+    required String eventId,
+    required String title,
+    required DateTime startsAt,
+    required DateTime endsAt,
+    required int categoryColorValue,
+  }) {
+    final normalizedTitle = title.trim();
+    if (normalizedTitle.isEmpty) {
+      throw ArgumentError(
+        '\u041d\u0430\u0437\u0432\u0430\u043d\u0438\u0435 \u0441\u043e\u0431\u044b\u0442\u0438\u044f \u043d\u0435 \u043c\u043e\u0436\u0435\u0442 \u0431\u044b\u0442\u044c \u043f\u0443\u0441\u0442\u044b\u043c.',
+      );
+    }
+    if (endsAt.isBefore(startsAt) || endsAt.isAtSameMomentAs(startsAt)) {
+      throw ArgumentError(
+        '\u0412\u0440\u0435\u043c\u044f \u043e\u043a\u043e\u043d\u0447\u0430\u043d\u0438\u044f \u0434\u043e\u043b\u0436\u043d\u043e \u0431\u044b\u0442\u044c \u043f\u043e\u0437\u0436\u0435 \u0432\u0440\u0435\u043c\u0435\u043d\u0438 \u043d\u0430\u0447\u0430\u043b\u0430.',
+      );
+    }
+
+    var found = false;
+    events = events
+        .map((item) {
+          if (item.event.id != eventId) {
+            return item;
+          }
+          found = true;
+          return HomeEventItem(
+            event: item.event.copyWith(
+              title: normalizedTitle,
+              startsAt: startsAt,
+              endsAt: endsAt,
+            ),
+            categoryName: item.categoryName,
+            categoryColorValue: categoryColorValue,
+          );
+        })
+        .toList(growable: false);
+
+    if (!found) {
+      throw StateError('Event not found.');
+    }
+  }
+
+  void deleteEvent({
+    required String eventId,
+    required bool deleteFollowingInSeries,
+  }) {
+    HomeEventItem? target;
+    for (final item in events) {
+      if (item.event.id == eventId) {
+        target = item;
+        break;
+      }
+    }
+    if (target == null) {
+      throw StateError('Event not found.');
+    }
+
+    final meta = eventSeriesByEventId[eventId];
+    if (meta == null ||
+        !deleteFollowingInSeries ||
+        meta.repeatUnitKey == 'none') {
+      events = events
+          .where((item) => item.event.id != eventId)
+          .toList(growable: false);
+      eventSeriesByEventId.remove(eventId);
+      return;
+    }
+
+    final seriesId = meta.seriesId;
+    final threshold = target.event.startsAt;
+    final idsToDelete = <String>{};
+    for (final item in events) {
+      final itemMeta = eventSeriesByEventId[item.event.id];
+      if (itemMeta == null || itemMeta.seriesId != seriesId) {
+        continue;
+      }
+      if (!item.event.startsAt.isBefore(threshold)) {
+        idsToDelete.add(item.event.id);
+      }
+    }
+
+    events = events
+        .where((item) => !idsToDelete.contains(item.event.id))
+        .toList(growable: false);
+    for (final id in idsToDelete) {
+      eventSeriesByEventId.remove(id);
+    }
+  }
+
+  DateTime _nextOccurrenceStart({
+    required DateTime startsAt,
+    required String repeatUnitKey,
+    required int repeatInterval,
+  }) {
+    return switch (repeatUnitKey) {
+      'day' => startsAt.add(Duration(days: repeatInterval)),
+      'week' => startsAt.add(Duration(days: repeatInterval * 7)),
+      'month' => _addMonthsClamped(startsAt, repeatInterval),
+      _ => startsAt,
+    };
+  }
+
+  DateTime _addMonthsClamped(DateTime dateTime, int monthsToAdd) {
+    final monthBase = DateTime(dateTime.year, dateTime.month + monthsToAdd, 1);
+    final daysInTargetMonth = DateTime(
+      monthBase.year,
+      monthBase.month + 1,
+      0,
+    ).day;
+    final day = dateTime.day <= daysInTargetMonth
+        ? dateTime.day
+        : daysInTargetMonth;
+
+    return DateTime(
+      monthBase.year,
+      monthBase.month,
+      day,
+      dateTime.hour,
+      dateTime.minute,
+      dateTime.second,
+      dateTime.millisecond,
+      dateTime.microsecond,
+    );
   }
 
   Iterable<FriendListItem> friendsForUser(String userId) sync* {
@@ -686,6 +915,15 @@ class InMemoryAppStore {
 
     nextHabitId = habits.length + 1;
     nextFriendId = 4;
+    nextEventId = events.length + 1;
+    eventSeriesByEventId = {};
+    for (final item in events) {
+      final seriesId = 'series_${nextSeriesId++}';
+      eventSeriesByEventId[item.event.id] = _EventSeriesMeta(
+        seriesId: seriesId,
+        repeatUnitKey: 'none',
+      );
+    }
   }
 
   void _upsertSharedHabitForFriend({
@@ -815,4 +1053,11 @@ class InMemoryAppStore {
   DateTime _dayOnly(DateTime value) {
     return DateTime(value.year, value.month, value.day);
   }
+}
+
+class _EventSeriesMeta {
+  const _EventSeriesMeta({required this.seriesId, required this.repeatUnitKey});
+
+  final String seriesId;
+  final String repeatUnitKey;
 }
