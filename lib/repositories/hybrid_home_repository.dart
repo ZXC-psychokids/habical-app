@@ -156,16 +156,29 @@ class HybridHomeRepository implements HomeRepository {
     String categoryName = 'Календарь',
     int categoryColorValue = 0xFF5AA9E6,
   }) async {
-    return _store.addEvent(
-      userId: userId,
-      title: title,
-      startsAt: startsAt,
-      endsAt: endsAt,
-      repeatUnitKey: _repeatUnitKey(repeatRule.unit),
-      repeatInterval: repeatRule.interval,
-      categoryName: categoryName,
-      categoryColorValue: categoryColorValue,
-    );
+    try {
+      final remoteItem = await _remoteRepository.addEvent(
+        userId: userId,
+        title: title,
+        startsAt: startsAt,
+        endsAt: endsAt,
+        repeatRule: repeatRule,
+        categoryName: categoryName,
+        categoryColorValue: categoryColorValue,
+      );
+      return remoteItem;
+    } catch (_) {
+      return _store.addEvent(
+        userId: userId,
+        title: title,
+        startsAt: startsAt,
+        endsAt: endsAt,
+        repeatUnitKey: _repeatUnitKey(repeatRule.unit),
+        repeatInterval: repeatRule.interval,
+        categoryName: categoryName,
+        categoryColorValue: categoryColorValue,
+      );
+    }
   }
 
   @override
@@ -202,6 +215,15 @@ class HybridHomeRepository implements HomeRepository {
     required String eventId,
     required bool deleteFollowingInSeries,
   }) async {
+    try {
+      await _remoteRepository.deleteEvent(
+        eventId: eventId,
+        deleteFollowingInSeries: deleteFollowingInSeries,
+      );
+    } catch (_) {
+      // Fallback to local delete below.
+    }
+
     _store.deleteEvent(
       eventId: eventId,
       deleteFollowingInSeries: deleteFollowingInSeries,

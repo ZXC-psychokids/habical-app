@@ -26,76 +26,19 @@ class ApiHomeRepository implements HomeRepository {
     );
     final to = from.add(const Duration(hours: 23, minutes: 59, seconds: 59));
 
-    final results = await Future.wait([
-      _apiClient.dio.get(
-        '/users/$userId/tasks/by-period',
-        queryParameters: {
-          'from': from.toUtc().toIso8601String(),
-          'to': to.toUtc().toIso8601String(),
-        },
-      ),
-      _apiClient.dio.get(
-        '/users/$userId/events/by-period',
-        queryParameters: {
-          'from': from.toUtc().toIso8601String(),
-          'to': to.toUtc().toIso8601String(),
-        },
-      ),
-      _apiClient.dio.get('/users/$userId/news'),
-    ]);
+    final events = await _fetchEventsForUser(
+      userId: userId,
+      fromInclusive: from,
+      toInclusive: to,
+    );
 
-    final taskRaw = results[0].data;
-    final eventRaw = results[1].data;
-    final newsRaw = results[2].data;
-
-    if (taskRaw is! List) {
-      throw StateError('Некорректный формат списка задач.');
-    }
-    if (eventRaw is! List) {
-      throw StateError('Некорректный формат списка событий.');
-    }
-    if (newsRaw is! List) {
-      throw StateError('Некорректный формат списка новостей.');
-    }
-
-    final tasks = taskRaw
-        .map((item) => Task.fromMap(Map<String, dynamic>.from(item as Map)))
-        .toList(growable: false)
-      ..sort((a, b) {
-        if (a.isCompleted == b.isCompleted) {
-          return a.startsAt.compareTo(b.startsAt);
-        }
-        return a.isCompleted ? 1 : -1;
-      });
-
-    final events = eventRaw
-        .map((item) => Event.fromMap(Map<String, dynamic>.from(item as Map)))
-        .map(
-          (event) => HomeEventItem(
-            event: event,
-            categoryName: 'Календарь',
-            categoryColorValue: 0xFF5AA9E6,
-          ),
-        )
-        .toList(growable: false)
-      ..sort((a, b) => a.event.startsAt.compareTo(b.event.startsAt));
-
-    final feedItems = newsRaw
-        .map((item) => Map<String, dynamic>.from(item as Map))
-        .map(
-          (map) => HomeFeedItem(
-            id: map['id'] as String,
-            friendName: '',
-            message: (map['text'] as String).trim(),
-            kind: HomeFeedKind.streak,
-            createdAt: DateTime.now(),
-          ),
-        )
-        .toList(growable: false);
+    final feedItems = _apiClient.isCurrentUser(userId)
+        ? await _fetchFeedItems()
+        : const <HomeFeedItem>[];
 
     return HomeData(
       day: selectedDay,
-      tasks: tasks,
+      tasks: const <Task>[],
       events: events,
       feedItems: feedItems,
     );
@@ -105,7 +48,7 @@ class ApiHomeRepository implements HomeRepository {
   Future<void> toggleTask({
     required String taskId,
   }) async {
-    await _apiClient.dio.post('/tasks/$taskId/complete');
+    // Не падаем, пока backend-зона задач (участник 1) не готова.
   }
 
   @override
@@ -114,32 +57,11 @@ class ApiHomeRepository implements HomeRepository {
     required DateTime fromInclusive,
     required DateTime toInclusive,
   }) async {
-    final response = await _apiClient.dio.get(
-      '/users/$userId/events/by-period',
-      queryParameters: {
-        'from': fromInclusive.toUtc().toIso8601String(),
-        'to': toInclusive.toUtc().toIso8601String(),
-      },
+    return _fetchEventsForUser(
+      userId: userId,
+      fromInclusive: fromInclusive,
+      toInclusive: toInclusive,
     );
-
-    final raw = response.data;
-    if (raw is! List) {
-      throw StateError('Некорректный формат списка событий.');
-    }
-
-    final items = raw
-        .map((item) => Event.fromMap(Map<String, dynamic>.from(item as Map)))
-        .map(
-          (event) => HomeEventItem(
-            event: event,
-            categoryName: 'Календарь',
-            categoryColorValue: 0xFF5AA9E6,
-          ),
-        )
-        .toList(growable: false)
-      ..sort((a, b) => a.event.startsAt.compareTo(b.event.startsAt));
-
-    return items;
   }
 
   @override
@@ -152,8 +74,30 @@ class ApiHomeRepository implements HomeRepository {
     String categoryName = 'Календарь',
     int categoryColorValue = 0xFF5AA9E6,
   }) async {
-    throw UnimplementedError(
-      'Создание событий пока остаётся локальным в гибридном репозитории.',
+    final categoryId = await _ensureDefaultCategoryId();
+
+    final schedule = _mapRepeatRule(repeatRule);
+    final response = await _apiClient.dio.post(
+      '/me/events',
+      data: {
+        'title': title.trim(),
+        'startsAt': startsAt.toUtc().toIso8601String(),
+        'endsAt': endsAt.toUtc().toIso8601String(),
+        'scheduleType': schedule.scheduleType,
+        'intervalDays': schedule.intervalDays,
+        'weekdays': schedule.weekdays,
+        'categoryId': categoryId,
+        'taskId': null,
+      },
+    );
+
+    final raw = response.data;
+    if (raw is! Map) {
+      throw StateError('Некорректный формат созданного события.');
+    }
+    return _mapHomeEventItem(
+      Map<String, dynamic>.from(raw),
+      userId: _apiClient.currentUserId ?? userId,
     );
   }
 
@@ -166,9 +110,9 @@ class ApiHomeRepository implements HomeRepository {
     int categoryColorValue = 0xFF5AA9E6,
   }) async {
     await _apiClient.dio.patch(
-      '/events/$eventId',
+      '/me/events/$eventId',
       data: {
-        'title': title,
+        'title': title.trim(),
         'startsAt': startsAt.toUtc().toIso8601String(),
         'endsAt': endsAt.toUtc().toIso8601String(),
       },
@@ -180,12 +124,226 @@ class ApiHomeRepository implements HomeRepository {
     required String eventId,
     required bool deleteFollowingInSeries,
   }) async {
-    throw UnimplementedError(
-      'Удаление событий пока остаётся локальным в гибридном репозитории.',
+    await _apiClient.dio.delete('/me/events/$eventId');
+  }
+
+  Future<List<HomeEventItem>> _fetchEventsForUser({
+    required String userId,
+    required DateTime fromInclusive,
+    required DateTime toInclusive,
+  }) async {
+    final isCurrent = _apiClient.isCurrentUser(userId);
+    final response = isCurrent
+        ? await _apiClient.dio.get(
+            '/me/events',
+            queryParameters: {
+              'from': fromInclusive.toUtc().toIso8601String(),
+              'to': toInclusive.toUtc().toIso8601String(),
+            },
+          )
+        : await _apiClient.dio.get(
+            '/users/$userId/events',
+            queryParameters: {
+              'from': fromInclusive.toUtc().toIso8601String(),
+              'to': toInclusive.toUtc().toIso8601String(),
+            },
+          );
+
+    final raw = response.data;
+    if (raw is! List) {
+      throw StateError('Некорректный формат списка событий.');
+    }
+
+    final effectiveUserId = _apiClient.currentUserId ?? userId;
+    final items = raw
+        .map((item) => Map<String, dynamic>.from(item as Map))
+        .map(
+          (map) => _mapHomeEventItem(
+            map,
+            userId: isCurrent ? effectiveUserId : userId,
+          ),
+        )
+        .toList(growable: false)
+      ..sort((a, b) => a.event.startsAt.compareTo(b.event.startsAt));
+
+    return items;
+  }
+
+  HomeEventItem _mapHomeEventItem(
+    Map<String, dynamic> map, {
+    required String userId,
+  }) {
+    final categoryMap = Map<String, dynamic>.from(map['category'] as Map);
+    final taskMapRaw = map['task'];
+    String? taskId;
+    if (taskMapRaw is Map) {
+      taskId = taskMapRaw['id'] as String?;
+    }
+
+    final event = Event(
+      id: map['id'] as String,
+      title: map['title'] as String,
+      startsAt: DateTime.parse(map['startsAt'] as String).toLocal(),
+      endsAt: DateTime.parse(map['endsAt'] as String).toLocal(),
+      userId: userId,
+      taskId: taskId,
     );
+
+    return HomeEventItem(
+      event: event,
+      categoryName: categoryMap['title'] as String? ?? 'Календарь',
+      categoryColorValue: _parseHexColor(
+        categoryMap['color'] as String? ?? '#5AA9E6',
+      ),
+    );
+  }
+
+  Future<List<HomeFeedItem>> _fetchFeedItems() async {
+    final response = await _apiClient.dio.get(
+      '/me/feed',
+      queryParameters: {
+        'limit': 20,
+      },
+    );
+
+    final raw = response.data;
+    if (raw is! Map) {
+      return const <HomeFeedItem>[];
+    }
+
+    final map = Map<String, dynamic>.from(raw);
+    final itemsRaw = map['items'];
+    if (itemsRaw is! List) {
+      return const <HomeFeedItem>[];
+    }
+
+    return itemsRaw
+        .map((item) => Map<String, dynamic>.from(item as Map))
+        .map((item) => _mapFeedItem(item))
+        .toList(growable: false);
+  }
+
+  HomeFeedItem _mapFeedItem(Map<String, dynamic> map) {
+    final actor = Map<String, dynamic>.from(map['actor'] as Map);
+    final relatedHabitRaw = map['relatedHabit'];
+    final relatedUserRaw = map['relatedUser'];
+    final type = map['type'] as String? ?? '';
+
+    final friendName = actor['handle'] as String? ?? 'Друг';
+    final message = switch (type) {
+      'friend_added' => 'добавил(а) нового друга',
+      'habit_created' => 'создал(а) привычку',
+      'habit_streak' => 'обновил(а) streak',
+      'shared_habit_reminder' => 'отправил(а) напоминание',
+      _ => 'есть новое действие',
+    };
+
+    final detail = () {
+      if (relatedHabitRaw is Map) {
+        final relatedHabit = Map<String, dynamic>.from(relatedHabitRaw);
+        final title = relatedHabit['title'] as String? ?? '';
+        if (title.isNotEmpty) {
+          return ' - $title';
+        }
+      }
+      if (relatedUserRaw is Map) {
+        final relatedUser = Map<String, dynamic>.from(relatedUserRaw);
+        final handle = relatedUser['handle'] as String? ?? '';
+        if (handle.isNotEmpty) {
+          return ' - @$handle';
+        }
+      }
+      final streakValue = map['streakValue'] as int?;
+      if (streakValue != null) {
+        return ' - $streakValue';
+      }
+      return '';
+    }();
+
+    return HomeFeedItem(
+      id: map['id'] as String,
+      friendName: friendName,
+      message: '$message$detail',
+      kind: HomeFeedKind.streak,
+      createdAt: DateTime.parse(map['createdAt'] as String).toLocal(),
+    );
+  }
+
+  Future<String> _ensureDefaultCategoryId() async {
+    final listResponse = await _apiClient.dio.get('/me/event-categories');
+    final raw = listResponse.data;
+    if (raw is List && raw.isNotEmpty) {
+      final first = Map<String, dynamic>.from(raw.first as Map);
+      return first['id'] as String;
+    }
+
+    final createResponse = await _apiClient.dio.post(
+      '/me/event-categories',
+      data: {
+        'title': 'Календарь',
+        'color': '#5AA9E6',
+      },
+    );
+    final created = createResponse.data;
+    if (created is! Map) {
+      throw StateError('Не удалось создать категорию события.');
+    }
+    return created['id'] as String;
+  }
+
+  _ScheduleData _mapRepeatRule(EventRepeatRule rule) {
+    if (rule.isNone) {
+      return const _ScheduleData(
+        scheduleType: 'none',
+        intervalDays: 1,
+        weekdays: <int>[],
+      );
+    }
+    if (rule.unit == EventRepeatUnit.day) {
+      return _ScheduleData(
+        scheduleType: rule.interval == 1 ? 'daily' : 'interval',
+        intervalDays: rule.interval,
+        weekdays: const <int>[],
+      );
+    }
+    if (rule.unit == EventRepeatUnit.week) {
+      return _ScheduleData(
+        scheduleType: 'interval',
+        intervalDays: rule.interval * 7,
+        weekdays: const <int>[],
+      );
+    }
+    return _ScheduleData(
+      scheduleType: 'monthly',
+      intervalDays: rule.interval,
+      weekdays: const <int>[],
+    );
+  }
+
+  int _parseHexColor(String hex) {
+    final normalized = hex.trim().replaceFirst('#', '');
+    if (normalized.length == 6) {
+      return int.parse('FF$normalized', radix: 16);
+    }
+    if (normalized.length == 8) {
+      return int.parse(normalized, radix: 16);
+    }
+    return 0xFF5AA9E6;
   }
 
   DateTime _dayOnly(DateTime value) {
     return DateTime(value.year, value.month, value.day);
   }
+}
+
+class _ScheduleData {
+  const _ScheduleData({
+    required this.scheduleType,
+    required this.intervalDays,
+    required this.weekdays,
+  });
+
+  final String scheduleType;
+  final int intervalDays;
+  final List<int> weekdays;
 }
