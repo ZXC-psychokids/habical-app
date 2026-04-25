@@ -10,19 +10,23 @@ import 'home/home_screen.dart';
 import 'settings/settings_screen.dart';
 
 class RootScreen extends StatelessWidget {
-  const RootScreen({super.key});
+  const RootScreen({super.key, required this.currentUserId});
+
+  final String currentUserId;
 
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
       create: (_) => NavigationCubit(),
-      child: const _RootView(),
+      child: _RootView(currentUserId: currentUserId),
     );
   }
 }
 
 class _RootView extends StatefulWidget {
-  const _RootView();
+  const _RootView({required this.currentUserId});
+
+  final String currentUserId;
 
   @override
   State<_RootView> createState() => _RootViewState();
@@ -103,17 +107,18 @@ class _RootViewState extends State<_RootView> {
 
   Widget _screenByTab(NavigationTab tab) {
     return switch (tab) {
-      NavigationTab.home => const HomeScreen(),
+      NavigationTab.home => HomeScreen(currentUserId: widget.currentUserId),
       NavigationTab.calendar => CalendarScreen(
         scale: _calendarScale,
+        currentUserId: widget.currentUserId,
         onOpenDayFromMonthTap: (_) {
           if (_calendarScale != CalendarScale.day) {
             setState(() => _calendarScale = CalendarScale.day);
           }
         },
       ),
-      NavigationTab.friends => const FriendsScreen(),
-      NavigationTab.habits => const HabitsScreen(),
+      NavigationTab.friends => FriendsScreen(currentUserId: widget.currentUserId),
+      NavigationTab.habits => HabitsScreen(currentUserId: widget.currentUserId),
       NavigationTab.settings => const SettingsScreen(),
     };
   }
