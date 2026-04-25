@@ -192,8 +192,7 @@ class _FriendsView extends StatelessWidget {
             content: TextField(
               controller: controller,
               autofocus: true,
-              keyboardType: TextInputType.emailAddress,
-              decoration: const InputDecoration(hintText: 'Введите email'),
+              decoration: const InputDecoration(hintText: 'Введите хендл'),
             ),
             actions: [
               TextButton(

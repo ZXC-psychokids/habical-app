@@ -12,7 +12,7 @@ class ApiFriendsRepository implements FriendsRepository {
 
   @override
   Future<List<FriendListItem>> fetchFriends({required String userId}) async {
-    final response = await _apiClient.dio.get('/users/$userId/friends');
+    final response = await _apiClient.dio.get('/me/friends');
     final rawList = response.data;
 
     if (rawList is! List) {
@@ -23,21 +23,18 @@ class ApiFriendsRepository implements FriendsRepository {
 
     for (final item in rawList) {
       final map = Map<String, dynamic>.from(item as Map);
-
-      final user1Id = map['user1Id'] as String;
-      final user2Id = map['user2Id'] as String;
-      final friendshipId = map['id'] as String;
-
-      final otherUserId = user1Id == userId ? user2Id : user1Id;
-      final otherUser = await _fetchUser(otherUserId);
+      final user = Map<String, dynamic>.from(map['user'] as Map);
+      final otherUserId = user['id'] as String;
+      final handle = (user['handle'] as String?)?.trim();
+      final friendshipId = otherUserId;
 
       result.add(
         FriendListItem(
           id: friendshipId,
           userId: otherUserId,
-          name: otherUser.name,
+          name: (handle == null || handle.isEmpty) ? 'Друг' : handle,
           status: FriendRelationStatus.connected,
-          streakDays: 0,
+          streakDays: (map['sharedHabitsCount'] as int?) ?? 0,
           sharedHabitTitle: null,
         ),
       );
@@ -50,7 +47,7 @@ class ApiFriendsRepository implements FriendsRepository {
   Future<List<FriendInviteItem>> fetchIncomingInvites({
     required String userId,
   }) async {
-    final response = await _apiClient.dio.get('/users/$userId/friend-invites');
+    final response = await _apiClient.dio.get('/me/friend-invites');
     final rawList = response.data;
 
     if (rawList is! List) {
@@ -61,18 +58,19 @@ class ApiFriendsRepository implements FriendsRepository {
 
     for (final item in rawList) {
       final map = Map<String, dynamic>.from(item as Map);
+      final sender = Map<String, dynamic>.from(map['sender'] as Map);
 
       final inviteId = map['id'] as String;
-      final fromUserId = map['user1Id'] as String;
-      final fromUser = await _fetchUser(fromUserId);
+      final fromUserId = sender['id'] as String;
+      final fromHandle = (sender['handle'] as String?)?.trim() ?? 'Пользователь';
 
       result.add(
         FriendInviteItem(
           id: inviteId,
           fromUserId: fromUserId,
-          fromName: fromUser.name,
-          fromEmail: '$fromUserId@example.com',
-          sentAt: DateTime.now(),
+          fromName: fromHandle,
+          fromEmail: '@$fromHandle',
+          sentAt: DateTime.parse(map['createdAt'] as String),
         ),
       );
     }
@@ -95,10 +93,11 @@ class ApiFriendsRepository implements FriendsRepository {
     required String userId,
     required String email,
   }) async {
+    final handle = _extractHandle(email);
     await _apiClient.dio.post(
-      '/users/$userId/friend-invites',
+      '/me/friend-invites',
       data: {
-        'email': email.trim(),
+        'handle': handle,
       },
     );
   }
@@ -108,7 +107,7 @@ class ApiFriendsRepository implements FriendsRepository {
     required String userId,
     required String inviteId,
   }) async {
-    await _apiClient.dio.post('/friend-invites/$inviteId/accept');
+    await _apiClient.dio.post('/me/friend-invites/$inviteId/accept');
   }
 
   @override
@@ -118,38 +117,26 @@ class ApiFriendsRepository implements FriendsRepository {
     required String title,
   }) async {
     await _apiClient.dio.post(
-      '/users/$userId/shared-habits',
+      '/me/shared-habits',
       data: {
-        'secondUserId': friendId,
+        'friendUserId': friendId,
         'title': title.trim(),
-        'periodicityDays': 1,
-        'initialStreakDays': 0,
+        'color': '#34C759',
+        'scheduleType': 'daily',
+        'intervalDays': 1,
+        'weekdays': <int>[],
       },
     );
   }
 
-  Future<_ApiUser> _fetchUser(String userId) async {
-    final response = await _apiClient.dio.get('/users/$userId');
-    final raw = response.data;
-
-    if (raw is! Map) {
-      throw StateError('Некорректный формат пользователя.');
+  String _extractHandle(String value) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) {
+      return '';
     }
-
-    final map = Map<String, dynamic>.from(raw);
-    return _ApiUser(
-      id: map['id'] as String,
-      name: map['name'] as String,
-    );
+    if (trimmed.contains('@')) {
+      return trimmed.split('@').first.trim();
+    }
+    return trimmed;
   }
-}
-
-class _ApiUser {
-  const _ApiUser({
-    required this.id,
-    required this.name,
-  });
-
-  final String id;
-  final String name;
 }
