@@ -44,3 +44,10 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 android/build/
+
+# Backend (Go + local runtime)
+backend/.env
+backend/.env.local
+backend/.gocache/
+backend/.gomodcache/
+backend/storage/avatars/
