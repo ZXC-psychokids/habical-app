@@ -2,19 +2,20 @@ import 'package:flutter/material.dart';
 
 import 'app/app.dart';
 import 'core/api_client.dart';
-import 'screens/auth/auth_stub_screen.dart';
+import 'services/session_service.dart';
 
-const _authStubsEnabled = bool.fromEnvironment('AUTH_STUBS', defaultValue: false);
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
 
-void main() {
-  if (_authStubsEnabled) {
-    runApp(
-      MaterialApp(
-        debugShowCheckedModeBanner: false,
-        home: AuthStubScreen(apiClient: ApiClient()),
-      ),
-    );
-    return;
-  }
-  runApp(const HabicalApp());
+  final sessionService = SessionService(
+    storage: SharedPreferencesSessionStorage(),
+  );
+  final apiClient = ApiClient(sessionService: sessionService);
+
+  runApp(
+    HabicalApp(
+      apiClient: apiClient,
+      sessionService: sessionService,
+    ),
+  );
 }
