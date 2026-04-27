@@ -1,54 +1,72 @@
 import '../models/home_data.dart';
-import '../models/home_event_item.dart';
+import '../models/home_day_event_item.dart';
+import '../models/home_feed_entry.dart';
+import '../models/home_task_item.dart';
 import 'in_memory_app_store.dart';
 
-enum EventRepeatUnit { none, day, week, month }
+class HomeTaskUpdateInput {
+  const HomeTaskUpdateInput({
+    this.title,
+    this.taskDate,
+    this.position,
+    this.manualColor,
+    this.clearManualColor = false,
+  });
 
-class EventRepeatRule {
-  const EventRepeatRule({this.unit = EventRepeatUnit.none, this.interval = 1})
-    : assert(interval > 0);
+  final String? title;
+  final DateTime? taskDate;
+  final int? position;
+  final String? manualColor;
+  final bool clearManualColor;
 
-  static const none = EventRepeatRule();
+  bool get hasChanges {
+    return title != null ||
+        taskDate != null ||
+        position != null ||
+        manualColor != null ||
+        clearManualColor;
+  }
+}
 
-  final EventRepeatUnit unit;
-  final int interval;
+class HomeTaskReorderItem {
+  const HomeTaskReorderItem({
+    required this.taskId,
+    required this.position,
+    required this.taskDate,
+  });
 
-  bool get isNone => unit == EventRepeatUnit.none;
+  final String taskId;
+  final int position;
+  final DateTime taskDate;
 }
 
 abstract class HomeRepository {
-  Future<HomeData> fetchHomeData({required String userId, DateTime? day});
+  Future<HomeData> fetchHomeData({required DateTime day});
 
   Future<void> toggleTask({required String taskId});
 
-  Future<List<HomeEventItem>> fetchEventsInRange({
-    required String userId,
-    required DateTime fromInclusive,
-    required DateTime toInclusive,
-  });
-
-  Future<HomeEventItem> addEvent({
-    required String userId,
+  Future<HomeTaskItem> createTask({
     required String title,
-    required DateTime startsAt,
-    required DateTime endsAt,
-    EventRepeatRule repeatRule,
-    String categoryName,
-    int categoryColorValue,
+    required DateTime taskDate,
+    required int position,
+    String? manualColor,
   });
 
-  Future<void> updateEvent({
-    required String eventId,
-    required String title,
-    required DateTime startsAt,
-    required DateTime endsAt,
-    int categoryColorValue,
+  Future<HomeTaskItem> updateTask({
+    required String taskId,
+    required HomeTaskUpdateInput input,
   });
 
-  Future<void> deleteEvent({
+  Future<void> deleteTask({required String taskId});
+
+  Future<void> reorderTasks({required List<HomeTaskReorderItem> items});
+
+  Future<HomeTaskItem> linkTaskToEvent({
+    required String taskId,
     required String eventId,
-    required bool deleteFollowingInSeries,
   });
+
+  Future<void> unlinkTaskFromEvent({required String taskId});
 }
 
 class InMemoryHomeRepository implements HomeRepository {
@@ -58,35 +76,62 @@ class InMemoryHomeRepository implements HomeRepository {
   final InMemoryAppStore _store;
 
   @override
-  Future<HomeData> fetchHomeData({
-    required String userId,
-    DateTime? day,
-  }) async {
-    final selectedDay = _dayOnly(day ?? _store.now);
+  Future<HomeData> fetchHomeData({required DateTime day}) async {
+    final selectedDay = DateTime(day.year, day.month, day.day);
 
-    final tasksForDay =
-        _store.tasksForUser(userId).where((task) {
-          return _isSameDay(task.startsAt, selectedDay);
-        }).toList()..sort((a, b) {
-          if (a.isCompleted == b.isCompleted) {
-            return a.startsAt.compareTo(b.startsAt);
-          }
-          return a.isCompleted ? 1 : -1;
-        });
+    final tasks = _store
+        .tasksForUser('user_me')
+        .where((task) => _isSameDay(task.startsAt, selectedDay))
+        .map(
+          (task) => HomeTaskItem(
+            id: task.id,
+            title: task.title,
+            taskDate: selectedDay,
+            position: task.startsAt.hour * 60 + task.startsAt.minute,
+            isCompleted: task.isCompleted,
+          ),
+        )
+        .toList(growable: false);
 
-    final eventsForDay = _store.events.where((item) {
-      return item.event.userId == userId &&
-          _isSameDay(item.event.startsAt, selectedDay);
-    }).toList()..sort((a, b) => a.event.startsAt.compareTo(b.event.startsAt));
+    final events = _store
+        .eventsForUserInRange(
+          userId: 'user_me',
+          fromInclusive: selectedDay,
+          toExclusive: selectedDay.add(const Duration(days: 1)),
+        )
+        .map(
+          (item) => HomeDayEventItem(
+            id: item.event.id,
+            title: item.event.title,
+            startsAt: item.event.startsAt,
+            endsAt: item.event.endsAt,
+            categoryId: item.categoryName,
+            categoryName: item.categoryName,
+            categoryColor: _argbToHex(item.categoryColorValue),
+          ),
+        )
+        .toList(growable: false);
 
-    final sortedFeed = [..._store.feedItems]
-      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    final feedEntries = _store.feedItems
+        .map(
+          (item) => HomeFeedEntry(
+            id: item.id,
+            type: HomeFeedType.habitCreated,
+            actor: HomeFeedUserRef(
+              id: item.id,
+              handle: item.friendName,
+              avatarUrl: 'https://example.com/avatar.png',
+            ),
+            createdAt: item.createdAt,
+          ),
+        )
+        .toList(growable: false);
 
     return HomeData(
       day: selectedDay,
-      tasks: tasksForDay,
-      events: eventsForDay,
-      feedItems: sortedFeed,
+      tasks: tasks,
+      events: events,
+      feedEntries: feedEntries,
     );
   }
 
@@ -96,88 +141,72 @@ class InMemoryHomeRepository implements HomeRepository {
   }
 
   @override
-  Future<List<HomeEventItem>> fetchEventsInRange({
-    required String userId,
-    required DateTime fromInclusive,
-    required DateTime toInclusive,
-  }) async {
-    final from = _dayOnly(fromInclusive);
-    final toExclusive = _dayOnly(toInclusive).add(const Duration(days: 1));
-    return _store
-        .eventsForUserInRange(
-          userId: userId,
-          fromInclusive: from,
-          toExclusive: toExclusive,
-        )
-        .toList(growable: false)
-      ..sort((a, b) => a.event.startsAt.compareTo(b.event.startsAt));
-  }
-
-  @override
-  Future<HomeEventItem> addEvent({
-    required String userId,
+  Future<HomeTaskItem> createTask({
     required String title,
-    required DateTime startsAt,
-    required DateTime endsAt,
-    EventRepeatRule repeatRule = EventRepeatRule.none,
-    String categoryName =
-        '\u041a\u0430\u043b\u0435\u043d\u0434\u0430\u0440\u044c',
-    int categoryColorValue = 0xFF5AA9E6,
+    required DateTime taskDate,
+    required int position,
+    String? manualColor,
   }) async {
-    return _store.addEvent(
-      userId: userId,
+    final item = HomeTaskItem(
+      id: 'local_task_${DateTime.now().microsecondsSinceEpoch}',
       title: title,
-      startsAt: startsAt,
-      endsAt: endsAt,
-      repeatUnitKey: _repeatUnitKey(repeatRule.unit),
-      repeatInterval: repeatRule.interval,
-      categoryName: categoryName,
-      categoryColorValue: categoryColorValue,
+      taskDate: DateTime(taskDate.year, taskDate.month, taskDate.day),
+      position: position,
+      isCompleted: false,
+      manualColor: manualColor,
+    );
+    return item;
+  }
+
+  @override
+  Future<HomeTaskItem> updateTask({
+    required String taskId,
+    required HomeTaskUpdateInput input,
+  }) async {
+    return HomeTaskItem(
+      id: taskId,
+      title: input.title ?? 'Task',
+      taskDate: input.taskDate ?? DateTime.now(),
+      position: input.position ?? 0,
+      isCompleted: false,
+      manualColor: input.manualColor,
     );
   }
 
   @override
-  Future<void> updateEvent({
+  Future<void> deleteTask({required String taskId}) async {}
+
+  @override
+  Future<void> reorderTasks({required List<HomeTaskReorderItem> items}) async {}
+
+  @override
+  Future<HomeTaskItem> linkTaskToEvent({
+    required String taskId,
     required String eventId,
-    required String title,
-    required DateTime startsAt,
-    required DateTime endsAt,
-    int categoryColorValue = 0xFF5AA9E6,
   }) async {
-    _store.updateEvent(
-      eventId: eventId,
-      title: title,
-      startsAt: startsAt,
-      endsAt: endsAt,
-      categoryColorValue: categoryColorValue,
+    return HomeTaskItem(
+      id: taskId,
+      title: 'Task',
+      taskDate: DateTime.now(),
+      position: 0,
+      isCompleted: false,
+      event: HomeTaskEventRef(
+        id: eventId,
+        startsAt: DateTime.now(),
+        endsAt: DateTime.now().add(const Duration(hours: 1)),
+      ),
     );
   }
 
   @override
-  Future<void> deleteEvent({
-    required String eventId,
-    required bool deleteFollowingInSeries,
-  }) async {
-    _store.deleteEvent(
-      eventId: eventId,
-      deleteFollowingInSeries: deleteFollowingInSeries,
-    );
-  }
-
-  String _repeatUnitKey(EventRepeatUnit unit) {
-    return switch (unit) {
-      EventRepeatUnit.none => 'none',
-      EventRepeatUnit.day => 'day',
-      EventRepeatUnit.week => 'week',
-      EventRepeatUnit.month => 'month',
-    };
-  }
-
-  DateTime _dayOnly(DateTime value) {
-    return DateTime(value.year, value.month, value.day);
-  }
+  Future<void> unlinkTaskFromEvent({required String taskId}) async {}
 
   bool _isSameDay(DateTime a, DateTime b) {
     return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
+
+  String _argbToHex(int value) {
+    final rgb = value & 0x00FFFFFF;
+    return '#${rgb.toRadixString(16).padLeft(6, '0').toUpperCase()}';
   }
 }

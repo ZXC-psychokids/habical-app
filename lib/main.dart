@@ -12,10 +12,5 @@ Future<void> main() async {
   );
   final apiClient = ApiClient(sessionService: sessionService);
 
-  runApp(
-    HabicalApp(
-      apiClient: apiClient,
-      sessionService: sessionService,
-    ),
-  );
+  runApp(HabicalApp(apiClient: apiClient, sessionService: sessionService));
 }

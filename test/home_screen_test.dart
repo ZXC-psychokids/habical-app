@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:habical/models/event.dart';
 import 'package:habical/models/home_data.dart';
-import 'package:habical/models/home_event_item.dart';
-import 'package:habical/models/home_feed_item.dart';
-import 'package:habical/models/task.dart';
+import 'package:habical/models/home_day_event_item.dart';
+import 'package:habical/models/home_feed_entry.dart';
+import 'package:habical/models/home_task_item.dart';
 import 'package:habical/repositories/home_repository.dart';
 import 'package:habical/screens/home/home_screen.dart';
 
@@ -16,33 +15,39 @@ void main() {
       data: HomeData(
         day: DateTime(2026, 3, 14),
         tasks: [
-          Task(
+          HomeTaskItem(
             id: 'task_1',
             title: 'Чтение',
-            startsAt: DateTime(2026, 3, 14, 8),
-            endsAt: DateTime(2026, 3, 14, 9),
+            taskDate: DateTime(2026, 3, 14),
+            position: 0,
             isCompleted: false,
           ),
         ],
         events: [
-          HomeEventItem(
-            event: Event(
-              id: 'event_1',
-              title: 'Пара по ML',
-              startsAt: DateTime(2026, 3, 14, 11, 10),
-              endsAt: DateTime(2026, 3, 14, 12, 25),
-              userId: 'user_me',
-            ),
+          HomeDayEventItem(
+            id: 'event_1',
+            title: 'Пара по ML',
+            startsAt: DateTime(2026, 3, 14, 11, 10),
+            endsAt: DateTime(2026, 3, 14, 12, 25),
+            categoryId: 'cat_1',
             categoryName: 'Учёба',
-            categoryColorValue: 0xFFF44336,
+            categoryColor: '#F44336',
           ),
         ],
-        feedItems: [
-          HomeFeedItem(
+        feedEntries: [
+          HomeFeedEntry(
             id: 'feed_1',
-            friendName: 'Кирилл',
-            message: 'выполняет «Чтение» уже 10 дней подряд!',
-            kind: HomeFeedKind.streak,
+            type: HomeFeedType.habitCreated,
+            actor: const HomeFeedUserRef(
+              id: 'user_1',
+              handle: 'Кирилл',
+              avatarUrl: 'https://example.com/a.png',
+            ),
+            relatedHabit: const HomeFeedHabitRef(
+              id: 'habit_1',
+              title: 'Чтение',
+              color: '#FF3B30',
+            ),
             createdAt: DateTime(2026, 3, 14, 7),
           ),
         ],
@@ -51,17 +56,14 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
-        home: HomeScreen(
-          currentUserId: 'user_me',
-          repository: repository,
-        ),
+        home: HomeScreen(repository: repository),
       ),
     );
 
     await tester.pumpAndSettle();
 
     expect(find.textContaining('Сегодня'), findsOneWidget);
-    expect(find.text('Чтение'), findsOneWidget);
+    expect(find.text('Чтение'), findsAtLeastNWidgets(1));
     expect(find.text('Пара по ML'), findsOneWidget);
     expect(find.text('Друзья'), findsOneWidget);
     expect(find.textContaining('Кирилл'), findsOneWidget);
@@ -75,23 +77,22 @@ void main() {
       data: HomeData(
         day: DateTime(2026, 3, 14),
         tasks: [
-          Task(
+          HomeTaskItem(
             id: 'task_1',
             title: 'Чтение',
-            startsAt: DateTime(2026, 3, 14, 8),
-            endsAt: DateTime(2026, 3, 14, 9),
+            taskDate: DateTime(2026, 3, 14),
+            position: 0,
             isCompleted: false,
           ),
         ],
         events: const [],
-        feedItems: const [],
+        feedEntries: const [],
       ),
     );
 
     await tester.pumpWidget(
       MaterialApp(
         home: HomeScreen(
-          currentUserId: 'user_me',
           repository: repository,
           showFriendsBlock: false,
         ),
@@ -111,56 +112,52 @@ class _FakeHomeRepository implements HomeRepository {
   final HomeData data;
 
   @override
-  Future<HomeData> fetchHomeData({
-    required String userId,
-    DateTime? day,
-  }) async {
+  Future<HomeData> fetchHomeData({required DateTime day}) async {
     return data;
   }
 
   @override
-  Future<void> toggleTask({
-    required String taskId,
-  }) async {}
+  Future<void> toggleTask({required String taskId}) async {}
 
   @override
-  Future<List<HomeEventItem>> fetchEventsInRange({
-    required String userId,
-    required DateTime fromInclusive,
-    required DateTime toInclusive,
+  Future<HomeTaskItem> createTask({
+    required String title,
+    required DateTime taskDate,
+    required int position,
+    String? manualColor,
   }) async {
-    return data.events;
+    return HomeTaskItem(
+      id: 'new_task',
+      title: title,
+      taskDate: taskDate,
+      position: position,
+      isCompleted: false,
+      manualColor: manualColor,
+    );
   }
 
   @override
-  Future<HomeEventItem> addEvent({
-    required String userId,
-    required String title,
-    required DateTime startsAt,
-    required DateTime endsAt,
-    EventRepeatRule repeatRule = EventRepeatRule.none,
-    String categoryName = 'Календарь',
-    int categoryColorValue = 0xFF5AA9E6,
-  }) {
-    throw UnimplementedError();
+  Future<HomeTaskItem> updateTask({
+    required String taskId,
+    required HomeTaskUpdateInput input,
+  }) async {
+    return data.tasks.first.copyWith(title: input.title);
   }
 
   @override
-  Future<void> updateEvent({
+  Future<void> deleteTask({required String taskId}) async {}
+
+  @override
+  Future<void> reorderTasks({required List<HomeTaskReorderItem> items}) async {}
+
+  @override
+  Future<HomeTaskItem> linkTaskToEvent({
+    required String taskId,
     required String eventId,
-    required String title,
-    required DateTime startsAt,
-    required DateTime endsAt,
-    int categoryColorValue = 0xFF5AA9E6,
-  }) {
-    throw UnimplementedError();
+  }) async {
+    return data.tasks.first;
   }
 
   @override
-  Future<void> deleteEvent({
-    required String eventId,
-    required bool deleteFollowingInSeries,
-  }) {
-    throw UnimplementedError();
-  }
+  Future<void> unlinkTaskFromEvent({required String taskId}) async {}
 }

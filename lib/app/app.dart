@@ -11,7 +11,6 @@ import '../repositories/friends_repository.dart';
 import '../repositories/habits_repository.dart';
 import '../repositories/home_repository.dart';
 import '../repositories/hybrid_habits_repository.dart';
-import '../repositories/hybrid_home_repository.dart';
 import '../repositories/in_memory_app_store.dart';
 import '../repositories/settings_repository.dart';
 import '../screens/auth/auth_gate_screen.dart';
@@ -45,7 +44,6 @@ class _HabicalAppState extends State<HabicalApp> {
     return MultiRepositoryProvider(
       providers: [
         RepositoryProvider<ApiClient>.value(value: widget.apiClient),
-        RepositoryProvider<SessionService>.value(value: widget.sessionService),
         RepositoryProvider<AuthRepository>(
           create: (_) => AuthRepository(
             apiClient: widget.apiClient,
@@ -68,10 +66,7 @@ class _HabicalAppState extends State<HabicalApp> {
           create: (_) => ApiFriendsRepository(apiClient: widget.apiClient),
         ),
         RepositoryProvider<HomeRepository>(
-          create: (_) => HybridHomeRepository(
-            remoteRepository: ApiHomeRepository(apiClient: widget.apiClient),
-            store: _store,
-          ),
+          create: (_) => ApiHomeRepository(apiClient: widget.apiClient),
         ),
       ],
       child: MaterialApp(
