@@ -3,8 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../models/home_event_item.dart';
-import '../../repositories/home_repository.dart';
+import '../../repositories/calendar_repository.dart';
 
 enum CalendarScale { schedule, day, threeDays, week, month }
 
@@ -31,14 +30,12 @@ class CalendarScreen extends StatefulWidget {
   const CalendarScreen({
     super.key,
     this.scale = CalendarScale.week,
-    this.currentUserId = 'user_me',
     this.repository,
     this.onOpenDayFromMonthTap,
   });
 
   final CalendarScale scale;
-  final String currentUserId;
-  final HomeRepository? repository;
+  final CalendarRepository? repository;
   final ValueChanged<DateTime>? onOpenDayFromMonthTap;
 
   @override
@@ -53,7 +50,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
   bool _didLoadInitial = false;
   bool _isLoadingEvents = false;
   String? _eventsError;
-  List<HomeEventItem> _rangeEvents = const [];
+  List<CalendarEventItem> _rangeEvents = const [];
 
   @override
   void initState() {
@@ -76,8 +73,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
   @override
   void didUpdateWidget(covariant CalendarScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.scale != widget.scale ||
-        oldWidget.currentUserId != widget.currentUserId) {
+    if (oldWidget.scale != widget.scale) {
       unawaited(_loadEventsForVisibleRange());
     }
   }
@@ -314,8 +310,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
     });
   }
 
-  HomeRepository get _homeRepository {
-    return widget.repository ?? RepositoryProvider.of<HomeRepository>(context);
+  CalendarRepository get _calendarRepository {
+    return widget.repository ??
+        RepositoryProvider.of<CalendarRepository>(context);
   }
 
   Future<void> _loadEventsForVisibleRange() async {
@@ -330,8 +327,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     });
 
     try {
-      final result = await _homeRepository.fetchEventsInRange(
-        userId: widget.currentUserId,
+      final result = await _calendarRepository.fetchEventsInRange(
         fromInclusive: visibleDays.first,
         toInclusive: visibleDays.last,
       );
@@ -359,15 +355,15 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final mapped =
         _rangeEvents
             .where(
-              (item) => allowedDays.contains(_dateOnly(item.event.startsAt)),
+              (item) => allowedDays.contains(_dateOnly(item.startsAt)),
             )
             .map((item) {
-              final stripe = Color(item.categoryColorValue);
+              final stripe = _hexToColor(item.categoryColor);
               return CalendarEventCard(
-                eventId: item.event.id,
-                title: item.event.title,
-                startsAt: item.event.startsAt,
-                endsAt: item.event.endsAt,
+                eventId: item.id,
+                title: item.title,
+                startsAt: item.startsAt,
+                endsAt: item.endsAt,
                 color: _pastel(stripe),
                 stripe: stripe,
               );
@@ -395,6 +391,21 @@ class _CalendarScreenState extends State<CalendarScreen> {
       blend(color.g),
       blend(color.b),
     );
+  }
+
+  Color _hexToColor(String rawValue) {
+    var value = rawValue.trim();
+    if (value.startsWith('#')) {
+      value = value.substring(1);
+    }
+    if (value.length == 6) {
+      value = 'FF$value';
+    }
+    final parsed = int.tryParse(value, radix: 16);
+    if (parsed == null) {
+      return const Color(0xFF5AA9E6);
+    }
+    return Color(parsed);
   }
 
   DateTime _suggestStartDateTime() {
@@ -435,8 +446,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     }
 
     try {
-      await _homeRepository.addEvent(
-        userId: widget.currentUserId,
+      await _calendarRepository.addEvent(
         title: draft.title,
         startsAt: draft.startsAt,
         endsAt: draft.endsAt,
@@ -508,7 +518,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     );
     if (deleteRequested) {
       try {
-        await _homeRepository.deleteEvent(
+        await _calendarRepository.deleteEvent(
           eventId: card.eventId,
           deleteFollowingInSeries: true,
         );
@@ -546,29 +556,14 @@ class _CalendarScreenState extends State<CalendarScreen> {
     }
 
     try {
-      await _homeRepository.updateEvent(
+      await _calendarRepository.updateEvent(
         eventId: card.eventId,
         title: draft.title,
         startsAt: draft.startsAt,
         endsAt: draft.endsAt,
+        repeatRule: draft.repeatRule,
         categoryColorValue: draft.color.toARGB32(),
       );
-
-      if (!draft.repeatRule.isNone) {
-        final nextStart = _nextOccurrenceStart(
-          startsAt: draft.startsAt,
-          repeatRule: draft.repeatRule,
-        );
-        final duration = draft.endsAt.difference(draft.startsAt);
-        await _homeRepository.addEvent(
-          userId: widget.currentUserId,
-          title: draft.title,
-          startsAt: nextStart,
-          endsAt: nextStart.add(duration),
-          repeatRule: draft.repeatRule,
-          categoryColorValue: draft.color.toARGB32(),
-        );
-      }
 
       if (!mounted) {
         return;
@@ -599,40 +594,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
     }
   }
 
-  DateTime _nextOccurrenceStart({
-    required DateTime startsAt,
-    required EventRepeatRule repeatRule,
-  }) {
-    if (repeatRule.unit == EventRepeatUnit.day) {
-      return startsAt.add(Duration(days: repeatRule.interval));
-    }
-    if (repeatRule.unit == EventRepeatUnit.week) {
-      return startsAt.add(Duration(days: repeatRule.interval * 7));
-    }
-    if (repeatRule.unit == EventRepeatUnit.month) {
-      final targetBase = DateTime(
-        startsAt.year,
-        startsAt.month + repeatRule.interval,
-        1,
-      );
-      final daysInTargetMonth = DateTime(
-        targetBase.year,
-        targetBase.month + 1,
-        0,
-      ).day;
-      final day = startsAt.day <= daysInTargetMonth
-          ? startsAt.day
-          : daysInTargetMonth;
-      return DateTime(
-        targetBase.year,
-        targetBase.month,
-        day,
-        startsAt.hour,
-        startsAt.minute,
-      );
-    }
-    return startsAt;
-  }
 }
 
 class _NotionHeader extends StatelessWidget {
