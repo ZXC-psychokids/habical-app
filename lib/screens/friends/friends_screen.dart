@@ -3,33 +3,18 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../cubits/friends/friends_cubit.dart';
 import '../../cubits/friends/friends_state.dart';
+import '../../models/friend_feed_item.dart';
 import '../../models/friend_invite_item.dart';
 import '../../models/friend_list_item.dart';
 import '../../repositories/friends_repository.dart';
-import '../../widgets/appear_animations.dart';
-import '../home/home_screen.dart';
-
-const _kAccentBlue = Color(0xFF0277BD);
-
-ButtonStyle _dialogTextButtonStyle() {
-  return TextButton.styleFrom(foregroundColor: _kAccentBlue);
-}
-
-ButtonStyle _dialogFilledButtonStyle() {
-  return ElevatedButton.styleFrom(
-    backgroundColor: _kAccentBlue,
-    foregroundColor: Colors.white,
-  );
-}
+import 'friend_page_screen.dart';
 
 class FriendsScreen extends StatelessWidget {
   const FriendsScreen({
     super.key,
-    this.currentUserId = 'user_me',
     FriendsRepository? repository,
   }) : _repository = repository;
 
-  final String currentUserId;
   final FriendsRepository? _repository;
 
   @override
@@ -38,33 +23,16 @@ class FriendsScreen extends StatelessWidget {
         _repository ?? RepositoryProvider.of<FriendsRepository>(context);
 
     return BlocProvider(
-      create: (_) =>
-          FriendsCubit(repository: repository, userId: currentUserId)
-            ..loadFriends(),
-      child: const _FriendsView(),
+      create: (_) => FriendsCubit(repository: repository)..loadFriends(),
+      child: _FriendsView(repository: repository),
     );
   }
 }
 
 class _FriendsView extends StatelessWidget {
-  const _FriendsView();
+  const _FriendsView({required this.repository});
 
-  Future<void> _openFriendHome(
-    BuildContext context,
-    FriendListItem item,
-  ) async {
-    await Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => HomeScreen(
-          currentUserId: item.userId,
-          showFriendsBlock: false,
-          canToggleTasks: false,
-          showAppBar: true,
-          appBarTitle: item.name,
-        ),
-      ),
-    );
-  }
+  final FriendsRepository repository;
 
   @override
   Widget build(BuildContext context) {
@@ -72,151 +40,82 @@ class _FriendsView extends StatelessWidget {
       listener: (context, state) {
         final error = state.errorMessage;
         if (error != null) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text(error)));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(error)),
+          );
           context.read<FriendsCubit>().clearError();
         }
 
         final info = state.infoMessage;
         if (info != null) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text(info)));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(info)),
+          );
           context.read<FriendsCubit>().clearInfo();
         }
       },
       builder: (context, state) {
-        final isInitialLoad =
-            state.status == FriendsStatus.loading && state.items.isEmpty;
+        final isLoading =
+            state.status == FriendsStatus.loading &&
+            state.items.isEmpty &&
+            state.feedItems.isEmpty;
 
         return Scaffold(
-          backgroundColor: const Color(0xFFEDEDED),
-          body: SafeArea(
-            child: ScreenAppear(
-              child: Column(
-                children: [
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.fromLTRB(16, 20, 16, 20),
-                    color: _kAccentBlue,
-                    child: _Header(
-                      inviteCount: state.incomingInvites.length,
-                      onInvitesTap: () =>
-                          _openInvitesDialog(context, state.incomingInvites),
-                    ),
-                  ),
-                  Expanded(
-                    child: RefreshIndicator(
-                      onRefresh: () => context.read<FriendsCubit>().loadFriends(),
-                      child: ListView(
-                        physics: const AlwaysScrollableScrollPhysics(),
-                        padding: const EdgeInsets.fromLTRB(16, 14, 16, 20),
-                        children: [
-                          if (isInitialLoad)
-                            const Padding(
-                              padding: EdgeInsets.symmetric(vertical: 24),
-                              child: Center(child: CircularProgressIndicator()),
-                            )
-                          else if (state.items.isEmpty)
-                            const DelayedAppear(
-                              delay: Duration(milliseconds: 70),
-                              child: _EmptyFriendsCard(),
-                            )
-                          else
-                            ...state.items.asMap().entries.map(
-                              (entry) => Padding(
-                                padding: const EdgeInsets.only(bottom: 10),
-                                child: DelayedAppear(
-                                  delay: Duration(
-                                    milliseconds: 70 + entry.key * 40,
-                                  ),
-                                  child: _FriendCard(
-                                    item: entry.value,
-                                    onTap: () =>
-                                        _openFriendHome(context, entry.value),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          const SizedBox(height: 8),
-                          DelayedAppear(
-                            delay: Duration(
-                              milliseconds: 90 + state.items.length * 35,
-                            ),
-                            child: SizedBox(
-                              height: 48,
-                              child: ElevatedButton(
-                                onPressed: () => _openInviteByEmailDialog(context),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFFBEBEBE),
-                                  foregroundColor: Colors.black,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                ),
-                                child: const Text(
-                                  'Добавить друга',
-                                  style: TextStyle(
-                                    fontSize: 17,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
+          appBar: AppBar(
+            title: const Text('Friends'),
+            actions: [
+              IconButton(
+                onPressed: () => _openInvitesDialog(context, state.incomingInvites),
+                icon: const Icon(Icons.mail_outline),
+                tooltip: 'Incoming invites',
               ),
+            ],
+          ),
+          body: RefreshIndicator(
+            onRefresh: () => context.read<FriendsCubit>().loadFriends(),
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.all(16),
+              children: [
+                if (isLoading)
+                  const Padding(
+                    padding: EdgeInsets.only(bottom: 12),
+                    child: Center(child: CircularProgressIndicator()),
+                  ),
+                _InviteByHandleCard(),
+                const SizedBox(height: 16),
+                const _SectionHeader(title: 'Friends'),
+                if (state.items.isEmpty)
+                  const Text('No friends yet.')
+                else
+                  ...state.items.map(
+                    (friend) => _FriendTile(
+                      friend: friend,
+                      onOpen: () => _openFriendPage(context, friend),
+                      onRemove: () =>
+                          context.read<FriendsCubit>().removeFriend(friend.userId),
+                    ),
+                  ),
+                const SizedBox(height: 16),
+                const _SectionHeader(title: 'Feed'),
+                if (state.feedItems.isEmpty)
+                  const Text('Feed is empty.')
+                else
+                  ...state.feedItems.map(_FeedTile.new),
+                if (state.nextFeedCursor != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: OutlinedButton(
+                      onPressed: () => context.read<FriendsCubit>().loadMoreFeed(),
+                      child: const Text('Load more'),
+                    ),
+                  ),
+              ],
             ),
           ),
         );
       },
     );
-  }
-
-  Future<void> _openInviteByEmailDialog(BuildContext context) async {
-    final controller = TextEditingController();
-    final cubit = context.read<FriendsCubit>();
-
-    try {
-      final shouldSend = await showDialog<bool>(
-        context: context,
-        builder: (dialogContext) {
-          return AlertDialog(
-            backgroundColor: Colors.white,
-            title: const Text('Пригласить друга'),
-            content: TextField(
-              controller: controller,
-              autofocus: true,
-              keyboardType: TextInputType.emailAddress,
-              decoration: const InputDecoration(hintText: 'Введите email'),
-            ),
-            actions: [
-              TextButton(
-                style: _dialogTextButtonStyle(),
-                onPressed: () => Navigator.of(dialogContext).pop(false),
-                child: const Text('Отмена'),
-              ),
-              ElevatedButton(
-                style: _dialogFilledButtonStyle(),
-                onPressed: () => Navigator.of(dialogContext).pop(true),
-                child: const Text('Отправить инвайт'),
-              ),
-            ],
-          );
-        },
-      );
-
-      if (shouldSend == true) {
-        await cubit.sendInviteByEmail(controller.text);
-      }
-    } finally {
-      controller.dispose();
-    }
   }
 
   Future<void> _openInvitesDialog(
@@ -229,27 +128,29 @@ class _FriendsView extends StatelessWidget {
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          backgroundColor: Colors.white,
-          title: const Text('Входящие заявки'),
+          title: const Text('Incoming invites'),
           content: SizedBox(
             width: 360,
             child: invites.isEmpty
-                ? const Text('Пока нет входящих заявок.')
+                ? const Text('No incoming invites.')
                 : Column(
                     mainAxisSize: MainAxisSize.min,
                     children: invites
                         .map(
-                          (invite) => Padding(
-                            padding: const EdgeInsets.only(bottom: 10),
-                            child: _InviteRow(
-                              invite: invite,
-                              onAccept: () async {
-                                await cubit.acceptInvite(invite.id);
-                                if (context.mounted) {
-                                  Navigator.of(dialogContext).pop();
-                                }
-                              },
-                            ),
+                          (invite) => _InviteRow(
+                            invite: invite,
+                            onAccept: () async {
+                              await cubit.acceptInvite(invite.id);
+                              if (context.mounted) {
+                                Navigator.of(dialogContext).pop();
+                              }
+                            },
+                            onReject: () async {
+                              await cubit.rejectInvite(invite.id);
+                              if (context.mounted) {
+                                Navigator.of(dialogContext).pop();
+                              }
+                            },
                           ),
                         )
                         .toList(growable: false),
@@ -257,306 +158,180 @@ class _FriendsView extends StatelessWidget {
           ),
           actions: [
             TextButton(
-              style: _dialogTextButtonStyle(),
               onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('Закрыть'),
+              child: const Text('Close'),
             ),
           ],
         );
       },
     );
   }
+
+  Future<void> _openFriendPage(BuildContext context, FriendListItem item) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => FriendPageScreen(
+          friendUserId: item.userId,
+          friendsRepository: repository,
+        ),
+      ),
+    );
+  }
 }
 
-class _Header extends StatelessWidget {
-  const _Header({required this.inviteCount, required this.onInvitesTap});
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader({required this.title});
 
-  final int inviteCount;
-  final VoidCallback onInvitesTap;
+  final String title;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        const Expanded(
-          child: Text(
-            'Друзья',
-            style: TextStyle(
-              fontSize: 34,
-              fontWeight: FontWeight.w700,
-              color: Colors.white,
-            ),
-          ),
-        ),
-        Stack(
-          clipBehavior: Clip.none,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Text(
+        title,
+        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+      ),
+    );
+  }
+}
+
+class _InviteByHandleCard extends StatefulWidget {
+  @override
+  State<_InviteByHandleCard> createState() => _InviteByHandleCardState();
+}
+
+class _InviteByHandleCardState extends State<_InviteByHandleCard> {
+  final _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            IconButton(
-              tooltip: 'Заявки',
-              onPressed: onInvitesTap,
-              icon: const Icon(
-                Icons.notifications_none,
-                size: 30,
-                color: Colors.white,
+            const Text(
+              'Send invite by handle',
+              style: TextStyle(fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _controller,
+              decoration: const InputDecoration(
+                hintText: 'friend_handle',
+                border: OutlineInputBorder(),
               ),
             ),
-            if (inviteCount > 0)
-              Positioned(
-                right: 6,
-                top: 6,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 6,
-                    vertical: 1,
-                  ),
-                  decoration: const BoxDecoration(
-                    color: Colors.red,
-                    shape: BoxShape.rectangle,
-                    borderRadius: BorderRadius.all(Radius.circular(10)),
-                  ),
-                  child: Text(
-                    '$inviteCount',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerRight,
+              child: FilledButton(
+                onPressed: () async {
+                  await context.read<FriendsCubit>().sendInviteByHandle(
+                    _controller.text,
+                  );
+                  if (!context.mounted) {
+                    return;
+                  }
+                  _controller.clear();
+                },
+                child: const Text('Send'),
               ),
+            ),
           ],
         ),
-      ],
+      ),
+    );
+  }
+}
+
+class _FriendTile extends StatelessWidget {
+  const _FriendTile({
+    required this.friend,
+    required this.onOpen,
+    required this.onRemove,
+  });
+
+  final FriendListItem friend;
+  final VoidCallback onOpen;
+  final VoidCallback onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: ListTile(
+        onTap: onOpen,
+        leading: const Icon(Icons.person_outline),
+        title: Text(friend.name),
+        subtitle: Text(friend.userId),
+        trailing: IconButton(
+          tooltip: 'Remove',
+          onPressed: onRemove,
+          icon: const Icon(Icons.person_remove_outlined),
+        ),
+      ),
     );
   }
 }
 
 class _InviteRow extends StatelessWidget {
-  const _InviteRow({required this.invite, required this.onAccept});
+  const _InviteRow({
+    required this.invite,
+    required this.onAccept,
+    required this.onReject,
+  });
 
   final FriendInviteItem invite;
   final VoidCallback onAccept;
+  final VoidCallback onReject;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF3F3F3),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0x1A000000)),
-      ),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
       child: Row(
         children: [
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  invite.fromName,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 2),
+                Text(invite.fromName),
                 Text(
                   invite.fromEmail,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    color: Color(0xFF4D4D4D),
-                  ),
+                  style: const TextStyle(color: Colors.black54),
                 ),
               ],
             ),
           ),
-          ElevatedButton(
-            style: _dialogFilledButtonStyle(),
-            onPressed: onAccept,
-            child: const Text('Принять'),
-          ),
+          TextButton(onPressed: onReject, child: const Text('Reject')),
+          FilledButton(onPressed: onAccept, child: const Text('Accept')),
         ],
       ),
     );
   }
 }
 
-class _FriendCard extends StatelessWidget {
-  const _FriendCard({required this.item, required this.onTap});
+class _FeedTile extends StatelessWidget {
+  const _FeedTile(this.item);
 
-  final FriendListItem item;
-  final VoidCallback onTap;
+  final FriendFeedItem item;
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: const Color(0xFFF3F3F3),
-      borderRadius: BorderRadius.circular(12),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0x1A000000)),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x14000000),
-                blurRadius: 6,
-                offset: Offset(0, 1),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 38,
-                height: 38,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE2E2E2),
-                  shape: BoxShape.circle,
-                  border: Border.all(color: const Color(0x66000000)),
-                ),
-                child: const Icon(
-                  Icons.person_outline,
-                  color: Color(0xFF444444),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      item.name,
-                      style: const TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      _subtitle(),
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: Color(0xFF4D4D4D),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              _TrailingAction(item: item),
-            ],
-          ),
-        ),
+    return Card(
+      child: ListTile(
+        leading: const Icon(Icons.newspaper_outlined),
+        title: Text(item.toPresentationText()),
+        subtitle: Text(item.createdAt.toLocal().toString()),
       ),
-    );
-  }
-
-  String _subtitle() {
-    if (!item.isConnected) {
-      return 'Можно добавить в друзья';
-    }
-    if (!item.hasSharedHabit) {
-      return 'Совместной привычки пока нет';
-    }
-    return 'Совместная привычка «${item.sharedHabitTitle}»';
-  }
-}
-
-class _TrailingAction extends StatelessWidget {
-  const _TrailingAction({required this.item});
-
-  final FriendListItem item;
-
-  @override
-  Widget build(BuildContext context) {
-    if (!item.isConnected) {
-      return IconButton(
-        tooltip: 'Добавить в друзья',
-        onPressed: () => context.read<FriendsCubit>().connectFriend(item.id),
-        icon: const Icon(Icons.person_add, size: 30),
-      );
-    }
-
-    if (!item.hasSharedHabit) {
-      return IconButton(
-        tooltip: 'Создать совместную привычку',
-        onPressed: () => _openCreateSharedHabitDialog(context),
-        icon: const Icon(Icons.add_box, size: 32),
-      );
-    }
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        const Icon(Icons.local_fire_department, size: 26),
-        Text(
-          item.streakLabel,
-          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
-        ),
-      ],
-    );
-  }
-
-  Future<void> _openCreateSharedHabitDialog(BuildContext context) async {
-    final controller = TextEditingController();
-    final cubit = context.read<FriendsCubit>();
-
-    try {
-      final shouldCreate = await showDialog<bool>(
-        context: context,
-        builder: (dialogContext) {
-          return AlertDialog(
-            backgroundColor: Colors.white,
-            title: Text('Совместная привычка: ${item.name}'),
-            content: TextField(
-              controller: controller,
-              autofocus: true,
-              decoration: const InputDecoration(hintText: 'Название привычки'),
-            ),
-            actions: [
-              TextButton(
-                style: _dialogTextButtonStyle(),
-                onPressed: () => Navigator.of(dialogContext).pop(false),
-                child: const Text('Отмена'),
-              ),
-              ElevatedButton(
-                style: _dialogFilledButtonStyle(),
-                onPressed: () => Navigator.of(dialogContext).pop(true),
-                child: const Text('Создать'),
-              ),
-            ],
-          );
-        },
-      );
-
-      if (shouldCreate == true) {
-        await cubit.createSharedHabit(
-          friendId: item.id,
-          title: controller.text,
-        );
-      }
-    } finally {
-      controller.dispose();
-    }
-  }
-}
-
-class _EmptyFriendsCard extends StatelessWidget {
-  const _EmptyFriendsCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF3F3F3),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0x1A000000)),
-      ),
-      child: const Text('Список друзей пока пуст. Добавьте первого друга.'),
     );
   }
 }

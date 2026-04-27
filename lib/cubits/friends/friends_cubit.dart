@@ -1,4 +1,4 @@
-﻿import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../repositories/friends_repository.dart';
 import 'friends_state.dart';
@@ -6,13 +6,10 @@ import 'friends_state.dart';
 class FriendsCubit extends Cubit<FriendsState> {
   FriendsCubit({
     required FriendsRepository repository,
-    required String userId,
   }) : _repository = repository,
-       _userId = userId,
        super(FriendsState.initial());
 
   final FriendsRepository _repository;
-  final String _userId;
 
   Future<void> loadFriends() async {
     emit(
@@ -24,13 +21,21 @@ class FriendsCubit extends Cubit<FriendsState> {
     );
 
     try {
-      final items = await _repository.fetchFriends(userId: _userId);
-      final invites = await _repository.fetchIncomingInvites(userId: _userId);
+      final friendsFuture = _repository.fetchFriends();
+      final invitesFuture = _repository.fetchIncomingInvites();
+      final feedFuture = _repository.fetchFeed(limit: 20);
+
+      final friends = await friendsFuture;
+      final invites = await invitesFuture;
+      final feedPage = await feedFuture;
+
       emit(
         state.copyWith(
           status: FriendsStatus.loaded,
-          items: items,
+          items: friends,
           incomingInvites: invites,
+          feedItems: feedPage.items,
+          nextFeedCursor: feedPage.nextCursor,
           clearError: true,
           clearInfo: true,
         ),
@@ -39,32 +44,42 @@ class FriendsCubit extends Cubit<FriendsState> {
       emit(
         state.copyWith(
           status: FriendsStatus.failure,
-          errorMessage: 'Не удалось загрузить друзей.',
+          errorMessage: 'Failed to load friends data.',
         ),
       );
     }
   }
 
-  Future<void> connectFriend(String friendId) async {
+  Future<void> loadMoreFeed() async {
+    final cursor = state.nextFeedCursor;
+    if (cursor == null) {
+      return;
+    }
+
     try {
-      await _repository.connectFriend(userId: _userId, friendId: friendId);
-      await loadFriends();
+      final page = await _repository.fetchFeed(limit: 20, cursor: cursor);
+      emit(
+        state.copyWith(
+          feedItems: [...state.feedItems, ...page.items],
+          nextFeedCursor: page.nextCursor,
+        ),
+      );
     } catch (_) {
       emit(
         state.copyWith(
           status: FriendsStatus.failure,
-          errorMessage: 'Не удалось добавить друга.',
+          errorMessage: 'Failed to load more feed items.',
         ),
       );
     }
   }
 
-  Future<void> sendInviteByEmail(String email) async {
+  Future<void> sendInviteByHandle(String handle) async {
     try {
-      await _repository.sendInviteByEmail(userId: _userId, email: email);
+      await _repository.sendInviteByHandle(handle: handle);
       emit(
         state.copyWith(
-          infoMessage: 'Инвайт отправлен. Ожидаем подтверждения.',
+          infoMessage: 'Invite sent.',
           clearError: true,
         ),
       );
@@ -72,7 +87,7 @@ class FriendsCubit extends Cubit<FriendsState> {
       emit(
         state.copyWith(
           status: FriendsStatus.failure,
-          errorMessage: 'Не удалось отправить инвайт.',
+          errorMessage: 'Failed to send invite.',
         ),
       );
     }
@@ -80,11 +95,11 @@ class FriendsCubit extends Cubit<FriendsState> {
 
   Future<void> acceptInvite(String inviteId) async {
     try {
-      await _repository.acceptInvite(userId: _userId, inviteId: inviteId);
+      await _repository.acceptInvite(inviteId: inviteId);
       await loadFriends();
       emit(
         state.copyWith(
-          infoMessage: 'Друг добавлен.',
+          infoMessage: 'Invite accepted.',
           clearError: true,
         ),
       );
@@ -92,28 +107,63 @@ class FriendsCubit extends Cubit<FriendsState> {
       emit(
         state.copyWith(
           status: FriendsStatus.failure,
-          errorMessage: 'Не удалось принять заявку.',
+          errorMessage: 'Failed to accept invite.',
         ),
       );
     }
   }
 
-  Future<void> createSharedHabit({
-    required String friendId,
-    required String title,
-  }) async {
+  Future<void> rejectInvite(String inviteId) async {
     try {
-      await _repository.createSharedHabit(
-        userId: _userId,
-        friendId: friendId,
-        title: title,
-      );
+      await _repository.rejectInvite(inviteId: inviteId);
       await loadFriends();
+      emit(
+        state.copyWith(
+          infoMessage: 'Invite rejected.',
+          clearError: true,
+        ),
+      );
     } catch (_) {
       emit(
         state.copyWith(
           status: FriendsStatus.failure,
-          errorMessage: 'Не удалось создать совместную привычку.',
+          errorMessage: 'Failed to reject invite.',
+        ),
+      );
+    }
+  }
+
+  Future<void> removeFriend(String friendUserId) async {
+    try {
+      await _repository.removeFriend(friendUserId: friendUserId);
+      await loadFriends();
+      emit(
+        state.copyWith(
+          infoMessage: 'Friend removed.',
+          clearError: true,
+        ),
+      );
+    } catch (_) {
+      emit(
+        state.copyWith(
+          status: FriendsStatus.failure,
+          errorMessage: 'Failed to remove friend.',
+        ),
+      );
+    }
+  }
+
+  Future<void> refreshFriendPage(String friendUserId) async {
+    try {
+      await _repository.fetchFriendPage(
+        userId: friendUserId,
+        day: DateTime.now(),
+      );
+    } catch (_) {
+      emit(
+        state.copyWith(
+          status: FriendsStatus.failure,
+          errorMessage: 'Failed to load friend page.',
         ),
       );
     }
