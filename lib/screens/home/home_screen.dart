@@ -60,17 +60,12 @@ class _HomeView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocConsumer<HomeCubit, HomeState>(
-      listener: (context, state) {
-        final error = state.errorMessage;
-        if (error != null) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
-          context.read<HomeCubit>().clearError();
-        }
-      },
+    return BlocBuilder<HomeCubit, HomeState>(
       builder: (context, state) {
         final data = state.data;
-        final isInitialLoad = state.status == HomeStatus.loading && data == null;
+        final isInitialLoad =
+            state.status == HomeStatus.loading && data == null;
+        final isLoading = state.status == HomeStatus.loading;
 
         final feedEntries = [...(data?.feedEntries ?? const <HomeFeedEntry>[])]
           ..sort((a, b) {
@@ -81,79 +76,86 @@ class _HomeView extends StatelessWidget {
           });
 
         return Scaffold(
-          backgroundColor: const Color(0xFFF5F5F5),
-          appBar: showAppBar ? AppBar(title: Text(appBarTitle ?? 'Главная')) : null,
+          backgroundColor: Colors.white,
+          appBar: showAppBar
+              ? AppBar(title: Text(appBarTitle ?? 'Главная'))
+              : null,
           body: SafeArea(
             child: isInitialLoad
                 ? const Center(child: CircularProgressIndicator())
-                : RefreshIndicator(
-                    onRefresh: () => context.read<HomeCubit>().loadHome(),
-                    child: ListView(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-                      children: [
-                        const Text(
-                          'Habical',
-                          style: TextStyle(
-                            fontSize: 48,
-                            fontWeight: FontWeight.w700,
-                            color: Color(0xFF0277BC),
-                            letterSpacing: -0.8,
-                            height: 1,
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        Text(
-                          _formatHomeDate(state.selectedDay),
-                          style: const TextStyle(
-                            fontSize: 34,
-                            fontWeight: FontWeight.w700,
-                            height: 1.04,
-                            letterSpacing: -0.4,
-                            color: Color(0xFF111111),
-                          ),
-                        ),
-                        const SizedBox(height: 14),
-                        GestureDetector(
-                          onHorizontalDragEnd: (details) {
-                            final velocity = details.primaryVelocity ?? 0;
-                            if (velocity < -80) {
-                              context.read<HomeCubit>().showPreviousDay();
-                            } else if (velocity > 80) {
-                              context.read<HomeCubit>().showNextDay();
-                            }
-                          },
-                          child: _DailyCard(
-                            selectedDay: state.selectedDay,
-                            tasks: data?.tasks ?? const <HomeTaskItem>[],
-                            events: data?.events ?? const <HomeDayEventItem>[],
-                            canToggleTasks: canToggleTasks,
-                          ),
-                        ),
-                        if (showFriendsBlock) ...[
-                          const SizedBox(height: 18),
-                          const Text(
-                            'Друзья',
-                            style: TextStyle(
-                              fontSize: 40,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: -0.4,
-                              color: Color(0xFF111111),
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          if (feedEntries.isEmpty)
-                            const _EmptyFeedCard()
-                          else
-                            ...feedEntries.map(
-                              (entry) => Padding(
-                                padding: const EdgeInsets.only(bottom: 10),
-                                child: _FeedCard(item: entry),
+                : Stack(
+                    children: [
+                      RefreshIndicator(
+                        onRefresh: () async {
+                          context.read<HomeCubit>().loadHome();
+                        },
+                        child: ListView(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+                          children: [
+                            const Text(
+                              'Habical',
+                              style: TextStyle(
+                                fontSize: 28,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF0277BC),
+                                letterSpacing: -0.4,
+                                height: 1,
                               ),
                             ),
-                        ],
-                      ],
-                    ),
+                            const SizedBox(height: 12),
+                            Text(
+                              _formatHomeDate(state.selectedDay),
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                height: 1.3,
+                                color: Color(0xFF111111),
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            _DailyCardSection(
+                              selectedDay: state.selectedDay,
+                              tasks: data?.tasks ?? const <HomeTaskItem>[],
+                              events:
+                                  data?.events ?? const <HomeDayEventItem>[],
+                              canToggleTasks: canToggleTasks,
+                            ),
+                            if (showFriendsBlock) ...[
+                              const SizedBox(height: 24),
+                              const Text(
+                                'Друзья',
+                                style: TextStyle(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: -0.3,
+                                  color: Color(0xFF111111),
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              if (feedEntries.isEmpty)
+                                const _EmptyFeedCard()
+                              else
+                                ...feedEntries.map(
+                                  (entry) => Padding(
+                                    padding: const EdgeInsets.only(bottom: 10),
+                                    child: _FeedCard(item: entry),
+                                  ),
+                                ),
+                            ],
+                          ],
+                        ),
+                      ),
+                      if (isLoading && data != null)
+                        Positioned.fill(
+                          child: Container(
+                            color: const Color(0x40000000),
+                            child: const Center(
+                              child: CircularProgressIndicator(),
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
           ),
         );
@@ -190,13 +192,52 @@ class _HomeView extends StatelessWidget {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final normalized = DateTime(day.year, day.month, day.day);
-    final base = '${day.day} ${months[day.month - 1]}, ${weekdays[day.weekday - 1]}';
+    final base =
+        '${day.day} ${months[day.month - 1]}, ${weekdays[day.weekday - 1]}';
 
     if (normalized == today) {
       return 'Сегодня $base';
     }
 
     return base;
+  }
+}
+
+class _DailyCardSection extends StatelessWidget {
+  const _DailyCardSection({
+    required this.selectedDay,
+    required this.tasks,
+    required this.events,
+    required this.canToggleTasks,
+  });
+
+  final DateTime selectedDay;
+  final List<HomeTaskItem> tasks;
+  final List<HomeDayEventItem> events;
+  final bool canToggleTasks;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onHorizontalDragEnd: (details) {
+        final velocity = details.primaryVelocity ?? 0;
+        if (velocity < -80) {
+          try {
+            context.read<HomeCubit>().showNextDay();
+          } catch (_) {}
+        } else if (velocity > 80) {
+          try {
+            context.read<HomeCubit>().showPreviousDay();
+          } catch (_) {}
+        }
+      },
+      child: _DailyCard(
+        selectedDay: selectedDay,
+        tasks: tasks,
+        events: events,
+        canToggleTasks: canToggleTasks,
+      ),
+    );
   }
 }
 
@@ -217,74 +258,65 @@ class _DailyCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFFF7F7F7),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0x1A000000)),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: const Color(0xFFE5E5EA)),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x16000000),
-            blurRadius: 8,
-            offset: Offset(0, 2),
+            color: Color(0x12000000),
+            blurRadius: 4,
+            offset: Offset(0, 1),
           ),
         ],
       ),
-      child: IntrinsicHeight(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: _TasksSide(
-                selectedDay: selectedDay,
-                tasks: tasks,
-                canToggleTasks: canToggleTasks,
-              ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: _TasksColumn(
+              tasks: tasks,
+              events: events,
+              canToggleTasks: canToggleTasks,
             ),
-            Container(
-              width: 1,
-              margin: const EdgeInsets.symmetric(vertical: 12),
-              color: const Color(0x22000000),
-            ),
-            Expanded(
-              child: _EventsSide(
-                selectedDay: selectedDay,
-                events: events,
-              ),
-            ),
-          ],
-        ),
+          ),
+          Container(
+            width: 1,
+            margin: const EdgeInsets.symmetric(vertical: 12),
+            color: const Color(0xFFE5E5EA),
+          ),
+          Expanded(child: _EventsColumn(events: events)),
+        ],
       ),
     );
   }
 }
 
-class _TasksSide extends StatelessWidget {
-  const _TasksSide({
-    required this.selectedDay,
+class _TasksColumn extends StatelessWidget {
+  const _TasksColumn({
     required this.tasks,
+    required this.events,
     required this.canToggleTasks,
   });
 
-  final DateTime selectedDay;
   final List<HomeTaskItem> tasks;
+  final List<HomeDayEventItem> events;
   final bool canToggleTasks;
 
   @override
   Widget build(BuildContext context) {
-    final events = context.read<HomeCubit>().state.data?.events ?? const <HomeDayEventItem>[];
-
     return Padding(
-      padding: const EdgeInsets.fromLTRB(10, 10, 8, 8),
+      padding: const EdgeInsets.fromLTRB(12, 12, 10, 10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           if (tasks.isEmpty)
             const Padding(
-              padding: EdgeInsets.only(top: 6, bottom: 16),
+              padding: EdgeInsets.only(top: 4, bottom: 12),
               child: Text(
                 'На сегодня задач нет',
                 style: TextStyle(
-                  fontSize: 14,
-                  color: Color(0xFF787878),
+                  fontSize: 13,
+                  color: Color(0xFF8E8E93),
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -295,41 +327,28 @@ class _TasksSide extends StatelessWidget {
               physics: const NeverScrollableScrollPhysics(),
               buildDefaultDragHandles: false,
               itemCount: tasks.length,
-              onReorder: (oldIndex, newIndex) async {
-                var adjustedNew = newIndex;
-                if (adjustedNew > oldIndex) {
-                  adjustedNew -= 1;
-                }
-                await context.read<HomeCubit>().moveTask(
-                  taskId: tasks[oldIndex].id,
-                  newPosition: adjustedNew,
-                );
+              onReorder: (oldIndex, newIndex) {
+                try {
+                  var adjustedNew = newIndex;
+                  if (adjustedNew > oldIndex) {
+                    adjustedNew -= 1;
+                  }
+                  context.read<HomeCubit>().moveTask(
+                    taskId: tasks[oldIndex].id,
+                    newPosition: adjustedNew,
+                  );
+                } catch (_) {}
               },
               itemBuilder: (context, index) {
                 final task = tasks[index];
                 return Padding(
                   key: ValueKey(task.id),
                   padding: const EdgeInsets.only(bottom: 8),
-                  child: _TaskTile(
+                  child: _TaskRow(
                     task: task,
+                    index: index,
                     canToggleTasks: canToggleTasks,
-                    onTap: () => _openTaskEditorSheet(
-                      context: context,
-                      task: task,
-                      events: events,
-                    ),
-                    onToggle: () => context.read<HomeCubit>().toggleTask(task.id),
-                    dragHandle: ReorderableDragStartListener(
-                      index: index,
-                      child: const Padding(
-                        padding: EdgeInsets.only(left: 4),
-                        child: Icon(
-                          Icons.drag_indicator,
-                          size: 17,
-                          color: Color(0xFF8A8A8A),
-                        ),
-                      ),
-                    ),
+                    events: events,
                   ),
                 );
               },
@@ -338,14 +357,12 @@ class _TasksSide extends StatelessWidget {
           Align(
             alignment: Alignment.center,
             child: IconButton(
-              onPressed: () => _openTaskEditorSheet(
-                context: context,
-                task: null,
-                events: events,
-              ),
-              icon: const Icon(Icons.add, size: 23, color: Color(0xFF818181)),
+              onPressed: () {
+                _showTaskDialog(context, task: null, events: events);
+              },
+              icon: const Icon(Icons.add, size: 24, color: Color(0xFF0277BC)),
               style: IconButton.styleFrom(
-                minimumSize: const Size(30, 30),
+                minimumSize: const Size(32, 32),
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
             ),
@@ -356,20 +373,18 @@ class _TasksSide extends StatelessWidget {
   }
 }
 
-class _TaskTile extends StatelessWidget {
-  const _TaskTile({
+class _TaskRow extends StatelessWidget {
+  const _TaskRow({
     required this.task,
+    required this.index,
     required this.canToggleTasks,
-    required this.onTap,
-    required this.onToggle,
-    required this.dragHandle,
+    required this.events,
   });
 
   final HomeTaskItem task;
+  final int index;
   final bool canToggleTasks;
-  final VoidCallback onTap;
-  final VoidCallback onToggle;
-  final Widget dragHandle;
+  final List<HomeDayEventItem> events;
 
   @override
   Widget build(BuildContext context) {
@@ -377,17 +392,19 @@ class _TaskTile extends StatelessWidget {
     final subtitle = _taskSubtitle(task);
 
     return InkWell(
-      onTap: onTap,
+      onTap: () {
+        _showTaskDialog(context, task: task, events: events);
+      },
       borderRadius: BorderRadius.circular(8),
       child: Padding(
-        padding: const EdgeInsets.only(top: 1, bottom: 1),
+        padding: const EdgeInsets.symmetric(vertical: 2),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
-              margin: const EdgeInsets.only(top: 2),
-              width: 4,
-              height: 44,
+              margin: const EdgeInsets.only(top: 4),
+              width: 3,
+              height: 40,
               decoration: BoxDecoration(
                 color: color,
                 borderRadius: BorderRadius.circular(999),
@@ -403,46 +420,69 @@ class _TaskTile extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
                       color: task.isCompleted
-                          ? const Color(0xFF8E8E8E)
-                          : const Color(0xFF151515),
+                          ? const Color(0xFFB0B0B5)
+                          : const Color(0xFF1C1C1E),
+                      decoration: task.isCompleted
+                          ? TextDecoration.lineThrough
+                          : null,
                     ),
                   ),
                   if (subtitle != null)
-                    Text(
-                      subtitle,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: Color(0xFF9A9A9A),
-                        fontWeight: FontWeight.w500,
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Text(
+                        subtitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF8E8E93),
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ),
                 ],
               ),
             ),
             Padding(
-              padding: const EdgeInsets.only(top: 3),
+              padding: const EdgeInsets.only(top: 4, left: 8),
               child: InkWell(
-                onTap: canToggleTasks ? onToggle : null,
+                onTap: canToggleTasks
+                    ? () {
+                        try {
+                          context.read<HomeCubit>().toggleTask(task.id);
+                        } catch (_) {}
+                      }
+                    : null,
                 borderRadius: BorderRadius.circular(999),
                 child: Container(
-                  width: 24,
-                  height: 24,
+                  width: 20,
+                  height: 20,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     border: Border.all(color: color, width: 2),
                     color: task.isCompleted ? color : Colors.transparent,
                   ),
                   child: task.isCompleted
-                      ? const Icon(Icons.check, size: 14, color: Colors.white)
+                      ? const Icon(Icons.check, size: 12, color: Colors.white)
                       : null,
                 ),
               ),
             ),
-            const SizedBox(width: 2),
-            dragHandle,
+            ReorderableDragStartListener(
+              index: index,
+              child: const Padding(
+                padding: EdgeInsets.only(left: 4),
+                child: Icon(
+                  Icons.drag_indicator,
+                  size: 16,
+                  color: Color(0xFFC7C7CC),
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -474,7 +514,7 @@ class _TaskTile extends StatelessWidget {
       return '$h:$m';
     }
 
-    return '${f(start)}-${f(end)}';
+    return '${f(start)}–${f(end)}';
   }
 
   Color _taskColor(HomeTaskItem task) {
@@ -487,48 +527,44 @@ class _TaskTile extends StatelessWidget {
     if (task.manualColor != null) {
       return _hexToColor(task.manualColor!);
     }
-    return const Color(0xFFB0B0B0);
+    return const Color(0xFFC7C7CC);
   }
 }
 
-class _EventsSide extends StatelessWidget {
-  const _EventsSide({
-    required this.selectedDay,
-    required this.events,
-  });
+class _EventsColumn extends StatelessWidget {
+  const _EventsColumn({required this.events});
 
-  final DateTime selectedDay;
   final List<HomeDayEventItem> events;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 10, 10, 10),
+      padding: const EdgeInsets.fromLTRB(10, 12, 12, 10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           if (events.isEmpty)
             const Padding(
-              padding: EdgeInsets.only(top: 6, bottom: 16),
+              padding: EdgeInsets.only(top: 4, bottom: 12),
               child: Text(
                 'На сегодня событий нет',
                 style: TextStyle(
-                  fontSize: 14,
-                  color: Color(0xFF787878),
+                  fontSize: 13,
+                  color: Color(0xFF8E8E93),
                   fontWeight: FontWeight.w500,
                 ),
               ),
             )
           else
-            ...events.map((event) => _EventTile(event: event)),
+            ...events.map((event) => _EventRow(event: event)).toList(),
         ],
       ),
     );
   }
 }
 
-class _EventTile extends StatelessWidget {
-  const _EventTile({required this.event});
+class _EventRow extends StatelessWidget {
+  const _EventRow({required this.event});
 
   final HomeDayEventItem event;
 
@@ -536,12 +572,16 @@ class _EventTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final now = DateTime.now();
     final isPast = event.endsAt.isBefore(now);
-    final textColor = isPast ? const Color(0xFFB4B4B4) : const Color(0xFF151515);
-    final subColor = isPast ? const Color(0xFFC7C7C7) : const Color(0xFF9B9B9B);
+    final textColor = isPast
+        ? const Color(0xFFB0B0B5)
+        : const Color(0xFF1C1C1E);
+    final subColor = isPast ? const Color(0xFFC7C7CC) : const Color(0xFF8E8E93);
 
     return InkWell(
       onTap: () {
-        context.read<NavigationCubit>().selectTab(NavigationTab.calendar);
+        try {
+          context.read<NavigationCubit>().selectTab(NavigationTab.calendar);
+        } catch (_) {}
       },
       borderRadius: BorderRadius.circular(8),
       child: Padding(
@@ -550,9 +590,9 @@ class _EventTile extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
-              margin: const EdgeInsets.only(top: 2),
-              width: 4,
-              height: 44,
+              margin: const EdgeInsets.only(top: 4),
+              width: 3,
+              height: 40,
               decoration: BoxDecoration(
                 color: _hexToColor(event.categoryColor),
                 borderRadius: BorderRadius.circular(999),
@@ -568,23 +608,25 @@ class _EventTile extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
                       color: textColor,
                     ),
                   ),
-                  Text(
-                    _timeRange(event.startsAt, event.endsAt),
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: subColor,
-                      fontWeight: FontWeight.w600,
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(
+                      _timeRange(event.startsAt, event.endsAt),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: subColor,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ),
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right, color: Color(0xFF8D8D8D), size: 20),
           ],
         ),
       ),
@@ -598,7 +640,7 @@ class _EventTile extends StatelessWidget {
       return '$h:$m';
     }
 
-    return '${f(start)}-${f(end)}';
+    return '${f(start)}–${f(end)}';
   }
 }
 
@@ -613,29 +655,35 @@ class _FeedCard extends StatelessWidget {
 
     return InkWell(
       onTap: () {
-        final friendsRepository = RepositoryProvider.of<FriendsRepository>(context);
-        Navigator.of(context).push(
-          MaterialPageRoute<void>(
-            builder: (_) => FriendPageScreen(
-              friendUserId: item.actor.id,
-              friendsRepository: friendsRepository,
+        try {
+          final friendsRepository = RepositoryProvider.of<FriendsRepository>(
+            context,
+          );
+          Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => FriendPageScreen(
+                friendUserId: item.actor.id,
+                friendsRepository: friendsRepository,
+              ),
             ),
-          ),
-        );
+          );
+        } catch (_) {}
       },
-      borderRadius: BorderRadius.circular(18),
+      borderRadius: BorderRadius.circular(15),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
         decoration: BoxDecoration(
-          color: hasAccent ? const Color(0xFFFFF4E8) : const Color(0xFFF7F7F7),
-          borderRadius: BorderRadius.circular(18),
+          color: hasAccent ? const Color(0xFFFFF8F0) : Colors.white,
+          borderRadius: BorderRadius.circular(15),
           border: Border.all(
-            color: hasAccent ? const Color(0xFFFFC680) : const Color(0x1A000000),
+            color: hasAccent
+                ? const Color(0xFFFFE0CC)
+                : const Color(0xFFE5E5EA),
           ),
           boxShadow: const [
             BoxShadow(
-              color: Color(0x12000000),
-              blurRadius: 6,
+              color: Color(0x08000000),
+              blurRadius: 3,
               offset: Offset(0, 1),
             ),
           ],
@@ -648,16 +696,14 @@ class _FeedCard extends StatelessWidget {
               child: Text(
                 item.toPresentationText(),
                 style: const TextStyle(
-                  fontSize: 15,
-                  color: Color(0xFF1D1D1D),
-                  height: 1.25,
+                  fontSize: 13,
+                  color: Color(0xFF1C1C1E),
+                  height: 1.35,
                   fontFamily: 'Cera Pro',
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
             ),
-            const SizedBox(width: 6),
-            const Icon(Icons.chevron_right, color: Color(0xFF6B6B6B)),
           ],
         ),
       ),
@@ -676,8 +722,8 @@ class _Avatar extends StatelessWidget {
       return ClipOval(
         child: Image.network(
           url,
-          width: 42,
-          height: 42,
+          width: 36,
+          height: 36,
           fit: BoxFit.cover,
           errorBuilder: (_, _, _) => _fallback(),
         ),
@@ -688,13 +734,13 @@ class _Avatar extends StatelessWidget {
 
   Widget _fallback() {
     return Container(
-      width: 42,
-      height: 42,
+      width: 36,
+      height: 36,
       decoration: const BoxDecoration(
-        color: Color(0xFF0A84FF),
+        color: Color(0xFF0277BC),
         shape: BoxShape.circle,
       ),
-      child: const Icon(Icons.person_outline, color: Colors.white),
+      child: const Icon(Icons.person_outline, color: Colors.white, size: 18),
     );
   }
 }
@@ -705,17 +751,24 @@ class _EmptyFeedCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
       decoration: BoxDecoration(
-        color: const Color(0xFFF7F7F7),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0x1A000000)),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: const Color(0xFFE5E5EA)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x08000000),
+            blurRadius: 3,
+            offset: Offset(0, 1),
+          ),
+        ],
       ),
       child: const Text(
         'Пока нет новостей друзей.',
         style: TextStyle(
-          fontSize: 15,
-          color: Color(0xFF707070),
+          fontSize: 13,
+          color: Color(0xFF8E8E93),
           fontWeight: FontWeight.w500,
         ),
       ),
@@ -723,319 +776,476 @@ class _EmptyFeedCard extends StatelessWidget {
   }
 }
 
-Future<void> _openTaskEditorSheet({
-  required BuildContext context,
+void _showTaskDialog(
+  BuildContext context, {
   required HomeTaskItem? task,
   required List<HomeDayEventItem> events,
-}) async {
-  final cubit = context.read<HomeCubit>();
-  final titleController = TextEditingController(text: task?.title ?? '');
-  var selectedColor = task?.manualColor ?? '#FF9F0A';
-  var selectedEventId = task?.event?.id;
-  var colorWasChangedByUser = false;
-
-  final isHabitLocked = task?.habit != null;
-  final isEditing = task != null;
-
-  final result = await showModalBottomSheet<_TaskSheetResult>(
+}) {
+  showDialog<void>(
     context: context,
-    isScrollControlled: true,
-    backgroundColor: Colors.transparent,
-    builder: (sheetContext) {
-      return StatefulBuilder(
-        builder: (sheetContext, setSheetState) {
-          final eventLocked = selectedEventId != null;
-          final canEditTitle = !isHabitLocked;
-          final canEditColor = !isHabitLocked && !eventLocked;
-          final canDelete = isEditing && !isHabitLocked;
+    barrierColor: const Color(0x60000000),
+    builder: (dialogContext) {
+      return _TaskEditDialog(task: task, events: events);
+    },
+  );
+}
 
-          final selectedEventTitle = () {
-            if (selectedEventId == null) {
-              return 'Не привязано';
-            }
-            for (final item in events) {
-              if (item.id == selectedEventId) {
-                return item.title;
-              }
-            }
-            return 'Не привязано';
-          }();
+class _TaskEditDialog extends StatefulWidget {
+  const _TaskEditDialog({required this.task, required this.events});
 
-          return Container(
-            margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-            padding: EdgeInsets.fromLTRB(
-              14,
-              12,
-              14,
-              14 + MediaQuery.of(sheetContext).viewInsets.bottom,
-            ),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF7F7F7),
-              borderRadius: BorderRadius.circular(22),
-              border: Border.all(color: const Color(0x22000000)),
-              boxShadow: const [
-                BoxShadow(
-                  color: Color(0x24000000),
-                  blurRadius: 14,
-                  offset: Offset(0, 4),
+  final HomeTaskItem? task;
+  final List<HomeDayEventItem> events;
+
+  @override
+  State<_TaskEditDialog> createState() => _TaskEditDialogState();
+}
+
+class _TaskEditDialogState extends State<_TaskEditDialog> {
+  late final TextEditingController titleController;
+  late String selectedColor;
+  String? selectedEventId;
+  bool colorWasChangedByUser = false;
+
+  @override
+  void initState() {
+    super.initState();
+    titleController = TextEditingController(text: widget.task?.title ?? '');
+    selectedColor = widget.task?.manualColor ?? _palette14[0];
+    selectedEventId = widget.task?.event?.id;
+  }
+
+  @override
+  void dispose() {
+    titleController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isHabitLocked = widget.task?.habit != null;
+    final isEditing = widget.task != null;
+    final eventLocked = selectedEventId != null;
+    final canEditTitle = !isHabitLocked;
+    final canEditColor = !isHabitLocked && !eventLocked;
+    final canDelete = isEditing && !isHabitLocked;
+
+    final selectedEventTitle = _getEventTitle();
+
+    return Dialog(
+      backgroundColor: Colors.white,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 32),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Title row
+            Row(
+              children: [
+                Container(
+                  width: 20,
+                  height: 20,
+                  decoration: BoxDecoration(
+                    color: _hexToColor(
+                      canEditColor ? selectedColor : '#8E8E93',
+                    ),
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: TextField(
+                    controller: titleController,
+                    enabled: canEditTitle,
+                    decoration: const InputDecoration(
+                      hintText: 'Новая задача',
+                      border: InputBorder.none,
+                      isDense: true,
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: -0.2,
+                    ),
+                    maxLines: 2,
+                  ),
                 ),
               ],
             ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      width: 18,
-                      height: 18,
+            const SizedBox(height: 16),
+
+            // Color palette
+            if (canEditColor) ...[
+              const Text(
+                'Цвет',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFF8E8E93),
+                ),
+              ),
+              const SizedBox(height: 10),
+              GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: _palette14.length,
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 7,
+                  mainAxisSpacing: 10,
+                  crossAxisSpacing: 10,
+                  childAspectRatio: 1,
+                ),
+                itemBuilder: (context, index) {
+                  final colorHex = _palette14[index];
+                  final selected = selectedColor == colorHex;
+
+                  return InkWell(
+                    onTap: () => setState(() {
+                      selectedColor = colorHex;
+                      colorWasChangedByUser = true;
+                    }),
+                    borderRadius: BorderRadius.circular(999),
+                    child: Container(
                       decoration: BoxDecoration(
-                        color: _hexToColor(canEditColor ? selectedColor : '#B0B0B0'),
+                        color: _hexToColor(colorHex),
                         shape: BoxShape.circle,
+                        border: Border.all(
+                          color: selected
+                              ? const Color(0xFF0277BC)
+                              : Colors.transparent,
+                          width: 3,
+                        ),
                       ),
                     ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: TextField(
-                        controller: titleController,
-                        enabled: canEditTitle,
-                        decoration: const InputDecoration(
-                          hintText: 'Новая задача',
-                          border: InputBorder.none,
-                          isDense: true,
-                        ),
+                  );
+                },
+              ),
+              const SizedBox(height: 14),
+            ] else if (!isHabitLocked) ...[
+              Text(
+                'Цвет: ${_eventTitle()}',
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFF8E8E93),
+                ),
+              ),
+              const SizedBox(height: 14),
+            ],
+
+            // Event link
+            if (!isHabitLocked) ...[
+              const Text(
+                'Событие',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFF8E8E93),
+                ),
+              ),
+              const SizedBox(height: 8),
+              InkWell(
+                onTap: () => _showEventPicker(),
+                borderRadius: BorderRadius.circular(8),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF7F7F7),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFFE5E5EA)),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        selectedEventTitle,
                         style: const TextStyle(
-                          fontSize: 31,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: -0.4,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: Color(0xFF1C1C1E),
                         ),
                       ),
+                      const Icon(
+                        Icons.chevron_right,
+                        color: Color(0xFF8E8E93),
+                        size: 18,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+            ],
+
+            // Habit info
+            if (widget.task?.habit != null) ...[
+              const Text(
+                'Привычка',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFF8E8E93),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF7F7F7),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFFE5E5EA)),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      widget.task!.habit!.title,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xFF1C1C1E),
+                      ),
                     ),
-                    IconButton(
-                      onPressed: () => Navigator.of(sheetContext).pop(_TaskSheetResult.save),
-                      icon: const Icon(Icons.check, size: 30),
+                    InkWell(
+                      onTap: () {
+                        Navigator.of(context).pop();
+                        try {
+                          context.read<NavigationCubit>().selectTab(
+                            NavigationTab.habits,
+                          );
+                        } catch (_) {}
+                      },
+                      child: const Text(
+                        'К привычкам',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          color: Color(0xFF0277BC),
+                        ),
+                      ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 2),
-                IgnorePointer(
-                  ignoring: !canEditColor,
-                  child: Opacity(
-                    opacity: canEditColor ? 1 : 0.45,
-                    child: GridView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: _palette14.length,
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 7,
-                        mainAxisSpacing: 10,
-                        crossAxisSpacing: 10,
-                        childAspectRatio: 1,
-                      ),
-                      itemBuilder: (context, index) {
-                        final colorHex = _palette14[index];
-                        final selected = selectedColor == colorHex;
+              ),
+              const SizedBox(height: 14),
+            ],
 
-                        return InkWell(
-                          onTap: () => setSheetState(() {
-                            selectedColor = colorHex;
-                            colorWasChangedByUser = true;
-                          }),
-                          borderRadius: BorderRadius.circular(999),
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: _hexToColor(colorHex),
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: selected
-                                    ? const Color(0xFF0277BC)
-                                    : Colors.transparent,
-                                width: 3,
-                              ),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                const Divider(height: 1),
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text(
-                    'Событие',
-                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700),
-                  ),
-                  subtitle: Text(selectedEventTitle),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () async {
-                    final pickedEventId = await showModalBottomSheet<String?>(
-                      context: sheetContext,
-                      backgroundColor: Colors.white,
-                      builder: (pickerContext) {
-                        return SafeArea(
-                          child: ListView(
-                            shrinkWrap: true,
-                            children: [
-                              ListTile(
-                                title: const Text('Не привязывать'),
-                                onTap: () => Navigator.of(pickerContext).pop(''),
-                              ),
-                              ...events.map(
-                                (event) => ListTile(
-                                  title: Text(event.title),
-                                  subtitle: Text(
-                                    '${_timeLabel(event.startsAt)}-${_timeLabel(event.endsAt)}',
-                                  ),
-                                  onTap: () => Navigator.of(pickerContext).pop(event.id),
-                                ),
-                              ),
-                              ListTile(
-                                title: const Text('Создать новое событие'),
-                                onTap: () {
-                                  Navigator.of(pickerContext).pop('__create_new__');
-                                },
-                              ),
-                            ],
-                          ),
-                        );
-                      },
-                    );
-
-                    if (pickedEventId == null) {
-                      return;
-                    }
-
-                    if (pickedEventId == '__create_new__') {
-                      Navigator.of(sheetContext).pop(_TaskSheetResult.goCalendar);
-                      return;
-                    }
-
-                    if (pickedEventId.isEmpty) {
-                      setSheetState(() => selectedEventId = null);
-                      return;
-                    }
-
-                    setSheetState(() => selectedEventId = pickedEventId);
-                  },
-                ),
-                if (task?.habit != null)
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text('Привычка'),
-                    subtitle: Text(task!.habit!.title),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () => Navigator.of(sheetContext).pop(_TaskSheetResult.goHabits),
-                  ),
+            // Buttons
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
                 if (canDelete)
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: TextButton(
-                      onPressed: () => Navigator.of(sheetContext).pop(_TaskSheetResult.delete),
-                      child: const Text(
-                        'Удалить задачу',
-                        style: TextStyle(color: Color(0xFFBC2C2C)),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                      try {
+                        context.read<HomeCubit>().deleteTask(widget.task!.id);
+                      } catch (_) {}
+                    },
+                    child: const Text(
+                      'Удалить',
+                      style: TextStyle(
+                        color: Color(0xFFFF3B30),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
-                  ),
+                  )
+                else
+                  const SizedBox(),
+                Row(
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: const Text('Отмена'),
+                    ),
+                    const SizedBox(width: 8),
+                    ElevatedButton(
+                      onPressed: () => _save(context),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF0277BC),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: const Text(
+                        'Сохранить',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ],
             ),
-          );
-        },
-      );
-    },
-  );
-
-  if (!context.mounted || result == null) {
-    return;
-  }
-
-  if (result == _TaskSheetResult.goCalendar) {
-    context.read<NavigationCubit>().selectTab(NavigationTab.calendar);
-    return;
-  }
-
-  if (result == _TaskSheetResult.goHabits) {
-    context.read<NavigationCubit>().selectTab(NavigationTab.habits);
-    return;
-  }
-
-  if (result == _TaskSheetResult.delete && task != null) {
-    await cubit.deleteTask(task.id);
-    return;
-  }
-
-  if (result != _TaskSheetResult.save) {
-    return;
-  }
-
-  final trimmedTitle = titleController.text.trim();
-  if (trimmedTitle.isEmpty) {
-    return;
-  }
-
-  if (task == null) {
-    final created = await cubit.createTask(
-      title: trimmedTitle,
-      manualColor: selectedEventId == null ? selectedColor : null,
-    );
-
-    if (selectedEventId != null && created != null && context.mounted) {
-      await cubit.linkTaskToEvent(taskId: created.id, eventId: selectedEventId!);
-    }
-
-    return;
-  }
-
-  final hasTitleChanged = trimmedTitle != task.title;
-  final canChangeManualColor = task.habit == null && selectedEventId == null;
-  final hasColorChanged = canChangeManualColor &&
-      colorWasChangedByUser &&
-      selectedColor != task.manualColor;
-
-  if (hasTitleChanged || hasColorChanged) {
-    await cubit.updateTask(
-      taskId: task.id,
-      input: HomeTaskUpdateInput(
-        title: hasTitleChanged ? trimmedTitle : null,
-        manualColor: hasColorChanged ? selectedColor : null,
+          ],
+        ),
       ),
     );
   }
 
-  final currentEventId = task.event?.id;
-  if (selectedEventId != currentEventId) {
+  String _getEventTitle() {
     if (selectedEventId == null) {
-      await cubit.unlinkTaskFromEvent(task.id);
-    } else {
-      await cubit.linkTaskToEvent(taskId: task.id, eventId: selectedEventId!);
+      return 'Не привязано';
     }
+    for (final item in widget.events) {
+      if (item.id == selectedEventId) {
+        return item.title;
+      }
+    }
+    return 'Не привязано';
+  }
+
+  String _eventTitle() {
+    if (selectedEventId == null) {
+      return 'не привязана';
+    }
+    for (final item in widget.events) {
+      if (item.id == selectedEventId) {
+        return 'привязана к "${item.title}"';
+      }
+    }
+    return 'привязана';
+  }
+
+  void _showEventPicker() {
+    showDialog<String?>(
+      context: context,
+      builder: (pickerContext) {
+        return Dialog(
+          child: ListView(
+            shrinkWrap: true,
+            children: [
+              ListTile(
+                title: const Text('Не привязывать'),
+                onTap: () => Navigator.of(pickerContext).pop(''),
+              ),
+              ...widget.events.map(
+                (event) => ListTile(
+                  title: Text(event.title),
+                  subtitle: Text(
+                    '${_timeLabel(event.startsAt)}–${_timeLabel(event.endsAt)}',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                  onTap: () => Navigator.of(pickerContext).pop(event.id),
+                ),
+              ),
+              ListTile(
+                title: const Text('Создать новое событие'),
+                onTap: () {
+                  Navigator.of(pickerContext).pop('__create_new__');
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    ).then((value) {
+      if (value == null) return;
+
+      if (value == '__create_new__') {
+        Navigator.of(context).pop();
+        try {
+          context.read<NavigationCubit>().selectTab(NavigationTab.calendar);
+        } catch (_) {}
+        return;
+      }
+
+      setState(() {
+        selectedEventId = value.isEmpty ? null : value;
+      });
+    });
+  }
+
+  void _save(BuildContext context) {
+    final trimmedTitle = titleController.text.trim();
+    if (trimmedTitle.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Название задачи не может быть пустым')),
+      );
+      return;
+    }
+
+    try {
+      final cubit = context.read<HomeCubit>();
+      final task = widget.task;
+
+      if (task == null) {
+        cubit
+            .createTask(
+              title: trimmedTitle,
+              manualColor: selectedEventId == null ? selectedColor : null,
+            )
+            .then((created) {
+              if (created != null && selectedEventId != null && mounted) {
+                cubit.linkTaskToEvent(
+                  taskId: created.id,
+                  eventId: selectedEventId!,
+                );
+              }
+              Navigator.of(context).pop();
+            });
+        return;
+      }
+
+      final hasTitleChanged = trimmedTitle != task.title;
+      final canChangeManualColor =
+          task.habit == null && selectedEventId == null;
+      final hasColorChanged =
+          canChangeManualColor &&
+          colorWasChangedByUser &&
+          selectedColor != task.manualColor;
+
+      if (hasTitleChanged || hasColorChanged) {
+        cubit.updateTask(
+          taskId: task.id,
+          input: HomeTaskUpdateInput(
+            title: hasTitleChanged ? trimmedTitle : null,
+            manualColor: hasColorChanged ? selectedColor : null,
+          ),
+        );
+      }
+
+      final currentEventId = task.event?.id;
+      if (selectedEventId != currentEventId) {
+        if (selectedEventId == null) {
+          cubit.unlinkTaskFromEvent(task.id);
+        } else {
+          cubit.linkTaskToEvent(taskId: task.id, eventId: selectedEventId!);
+        }
+      }
+
+      Navigator.of(context).pop();
+    } catch (_) {}
   }
 }
 
-enum _TaskSheetResult {
-  save,
-  delete,
-  goCalendar,
-  goHabits,
-}
-
 const List<String> _palette14 = [
-  '#FF3B30',
-  '#0A84FF',
-  '#34C759',
-  '#FFD60A',
-  '#FF9F0A',
-  '#BF5AF2',
-  '#8AC926',
-  '#8E8E93',
-  '#8B5E3C',
-  '#FF2D55',
-  '#40CBE0',
-  '#A0AEC0',
-  '#6366F1',
-  '#F725D0',
+  '#FF3B30', // красный
+  '#0A84FF', // синий
+  '#34C759', // зеленый
+  '#FFD60A', // желтый
+  '#FF9500', // оранжевый
+  '#AF52DE', // фиолетовый
+  '#A2845E', // коричневый
+  '#FF2D55', // розовый
+  '#00C7BE', // бирюзовый
+  '#8E8E93', // серый
+  '#64B5F6', // светлый синий
+  '#81C784', // светлый зеленый
+  '#FFB74D', // светлый оранжевый
+  '#BA68C8', // светлый фиолетовый
 ];
 
 Color _hexToColor(String rawValue) {
@@ -1048,7 +1258,7 @@ Color _hexToColor(String rawValue) {
   }
   final parsed = int.tryParse(value, radix: 16);
   if (parsed == null) {
-    return const Color(0xFFB0B0B0);
+    return const Color(0xFFC7C7CC);
   }
   return Color(parsed);
 }
