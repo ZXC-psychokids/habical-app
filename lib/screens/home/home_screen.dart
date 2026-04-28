@@ -322,36 +322,20 @@ class _TasksColumn extends StatelessWidget {
               ),
             )
           else
-            ReorderableListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              buildDefaultDragHandles: false,
-              itemCount: tasks.length,
-              onReorder: (oldIndex, newIndex) {
-                try {
-                  var adjustedNew = newIndex;
-                  if (adjustedNew > oldIndex) {
-                    adjustedNew -= 1;
-                  }
-                  context.read<HomeCubit>().moveTask(
-                    taskId: tasks[oldIndex].id,
-                    newPosition: adjustedNew,
-                  );
-                } catch (_) {}
-              },
-              itemBuilder: (context, index) {
-                final task = tasks[index];
-                return Padding(
-                  key: ValueKey(task.id),
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: _TaskRow(
-                    task: task,
-                    index: index,
-                    canToggleTasks: canToggleTasks,
-                    events: events,
+            Column(
+              children: [
+                for (var index = 0; index < tasks.length; index++)
+                  Padding(
+                    key: ValueKey(tasks[index].id),
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: _TaskRow(
+                      task: tasks[index],
+                      index: index,
+                      canToggleTasks: canToggleTasks,
+                      events: events,
+                    ),
                   ),
-                );
-              },
+              ],
             ),
           const SizedBox(height: 2),
           Align(
@@ -472,15 +456,12 @@ class _TaskRow extends StatelessWidget {
                 ),
               ),
             ),
-            ReorderableDragStartListener(
-              index: index,
-              child: const Padding(
-                padding: EdgeInsets.only(left: 4),
-                child: Icon(
-                  Icons.drag_indicator,
-                  size: 16,
-                  color: Color(0xFFC7C7CC),
-                ),
+            const Padding(
+              padding: EdgeInsets.only(left: 4),
+              child: Icon(
+                Icons.drag_indicator,
+                size: 16,
+                color: Color(0xFFC7C7CC),
               ),
             ),
           ],
