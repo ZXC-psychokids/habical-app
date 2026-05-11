@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:dio/dio.dart';
 
 import '../../repositories/auth_repository.dart';
 
@@ -79,6 +80,21 @@ class _AuthFlowScreenState extends State<AuthFlowScreen>
       setState(() {
         _message = successMessage;
         _messageIsError = false;
+      });
+    } on DioException catch (error) {
+      if (!mounted) {
+        return;
+      }
+      final responseData = error.response?.data;
+      var details = 'Request failed.';
+      if (responseData is Map && responseData['message'] is String) {
+        details = responseData['message'] as String;
+      } else if (error.message != null && error.message!.trim().isNotEmpty) {
+        details = error.message!.trim();
+      }
+      setState(() {
+        _message = details;
+        _messageIsError = true;
       });
     } catch (_) {
       if (!mounted) {
