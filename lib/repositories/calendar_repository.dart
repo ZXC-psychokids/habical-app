@@ -75,6 +75,21 @@ abstract class CalendarRepository {
   });
 
   Future<List<EventCategoryItem>> fetchCategories();
+
+  Future<EventCategoryItem> createCategory({
+    required String title,
+    required String color,
+  });
+
+  Future<EventCategoryItem> updateCategory({
+    required String categoryId,
+    String? title,
+    String? color,
+  });
+
+  Future<void> deleteCategory({
+    required String categoryId,
+  });
 }
 
 class ApiCalendarRepository implements CalendarRepository {
@@ -186,6 +201,70 @@ class ApiCalendarRepository implements CalendarRepository {
           ),
         )
         .toList(growable: false);
+  }
+
+  @override
+  Future<EventCategoryItem> createCategory({
+    required String title,
+    required String color,
+  }) async {
+    final response = await _apiClient.dio.post(
+      '/me/event-categories',
+      data: {
+        'title': title.trim(),
+        'color': color.trim().toUpperCase(),
+      },
+    );
+    final raw = response.data;
+    if (raw is! Map) {
+      throw StateError('Invalid created category payload.');
+    }
+    final map = Map<String, dynamic>.from(raw);
+    return EventCategoryItem(
+      id: _requiredString(map['id'], 'id'),
+      title: _requiredString(map['title'], 'title'),
+      color: _requiredString(map['color'], 'color'),
+    );
+  }
+
+  @override
+  Future<EventCategoryItem> updateCategory({
+    required String categoryId,
+    String? title,
+    String? color,
+  }) async {
+    final payload = <String, dynamic>{};
+    if (title != null) {
+      payload['title'] = title.trim();
+    }
+    if (color != null) {
+      payload['color'] = color.trim().toUpperCase();
+    }
+    if (payload.isEmpty) {
+      throw ArgumentError('No category fields to update.');
+    }
+
+    final response = await _apiClient.dio.patch(
+      '/me/event-categories/$categoryId',
+      data: payload,
+    );
+    final raw = response.data;
+    if (raw is! Map) {
+      throw StateError('Invalid updated category payload.');
+    }
+    final map = Map<String, dynamic>.from(raw);
+    return EventCategoryItem(
+      id: _requiredString(map['id'], 'id'),
+      title: _requiredString(map['title'], 'title'),
+      color: _requiredString(map['color'], 'color'),
+    );
+  }
+
+  @override
+  Future<void> deleteCategory({
+    required String categoryId,
+  }) async {
+    await _apiClient.dio.delete('/me/event-categories/$categoryId');
   }
 
   CalendarEventItem _parseEvent(Map<String, dynamic> map) {
