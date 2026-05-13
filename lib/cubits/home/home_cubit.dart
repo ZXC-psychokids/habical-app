@@ -1,5 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../core/app_logger.dart';
 import '../../models/home_task_item.dart';
 import '../../repositories/home_repository.dart';
 import 'home_state.dart';
@@ -14,6 +15,7 @@ class HomeCubit extends Cubit<HomeState> {
 
   Future<void> loadHome({DateTime? day}) async {
     final targetDay = _normalize(day ?? state.selectedDay);
+    AppLogger.i('HomeCubit.loadHome started day=$targetDay');
 
     emit(
       state.copyWith(
@@ -34,7 +36,9 @@ class HomeCubit extends Cubit<HomeState> {
           clearError: true,
         ),
       );
-    } catch (_) {
+      AppLogger.i('HomeCubit.loadHome completed day=$targetDay');
+    } catch (error, stackTrace) {
+      AppLogger.e('HomeCubit.loadHome failed', error, stackTrace);
       emit(
         state.copyWith(
           status: HomeStatus.failure,
@@ -57,7 +61,8 @@ class HomeCubit extends Cubit<HomeState> {
     try {
       await _repository.toggleTask(taskId: taskId);
       await loadHome(day: state.selectedDay);
-    } catch (_) {
+    } catch (error, stackTrace) {
+      AppLogger.e('HomeCubit.toggleTask failed taskId=$taskId', error, stackTrace);
       emit(
         state.copyWith(
           status: HomeStatus.failure,
@@ -83,7 +88,8 @@ class HomeCubit extends Cubit<HomeState> {
       );
       await loadHome(day: state.selectedDay);
       return created;
-    } catch (_) {
+    } catch (error, stackTrace) {
+      AppLogger.e('HomeCubit.createTask failed', error, stackTrace);
       emit(
         state.copyWith(
           status: HomeStatus.failure,
@@ -101,7 +107,8 @@ class HomeCubit extends Cubit<HomeState> {
     try {
       await _repository.updateTask(taskId: taskId, input: input);
       await loadHome(day: state.selectedDay);
-    } catch (_) {
+    } catch (error, stackTrace) {
+      AppLogger.e('HomeCubit.updateTask failed taskId=$taskId', error, stackTrace);
       emit(
         state.copyWith(
           status: HomeStatus.failure,
@@ -115,7 +122,8 @@ class HomeCubit extends Cubit<HomeState> {
     try {
       await _repository.deleteTask(taskId: taskId);
       await loadHome(day: state.selectedDay);
-    } catch (_) {
+    } catch (error, stackTrace) {
+      AppLogger.e('HomeCubit.deleteTask failed taskId=$taskId', error, stackTrace);
       emit(
         state.copyWith(
           status: HomeStatus.failure,
@@ -160,7 +168,8 @@ class HomeCubit extends Cubit<HomeState> {
     try {
       await _repository.reorderTasks(items: requestItems);
       await loadHome(day: state.selectedDay);
-    } catch (_) {
+    } catch (error, stackTrace) {
+      AppLogger.e('HomeCubit.moveTask failed taskId=$taskId', error, stackTrace);
       emit(
         state.copyWith(
           status: HomeStatus.failure,
@@ -177,7 +186,12 @@ class HomeCubit extends Cubit<HomeState> {
     try {
       await _repository.linkTaskToEvent(taskId: taskId, eventId: eventId);
       await loadHome(day: state.selectedDay);
-    } catch (_) {
+    } catch (error, stackTrace) {
+      AppLogger.e(
+        'HomeCubit.linkTaskToEvent failed taskId=$taskId eventId=$eventId',
+        error,
+        stackTrace,
+      );
       emit(
         state.copyWith(
           status: HomeStatus.failure,
@@ -191,7 +205,12 @@ class HomeCubit extends Cubit<HomeState> {
     try {
       await _repository.unlinkTaskFromEvent(taskId: taskId);
       await loadHome(day: state.selectedDay);
-    } catch (_) {
+    } catch (error, stackTrace) {
+      AppLogger.e(
+        'HomeCubit.unlinkTaskFromEvent failed taskId=$taskId',
+        error,
+        stackTrace,
+      );
       emit(
         state.copyWith(
           status: HomeStatus.failure,

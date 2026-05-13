@@ -1,4 +1,5 @@
 import '../core/api_client.dart';
+import '../core/app_logger.dart';
 
 enum EventRepeatUnit { none, day, week, month }
 
@@ -116,6 +117,11 @@ class ApiCalendarRepository implements CalendarRepository {
 
     final raw = response.data;
     if (raw is! List) {
+      AppLogger.e(
+        'Failed to parse calendar events payload',
+        StateError('Invalid events payload.'),
+        StackTrace.current,
+      );
       throw StateError('Invalid events payload.');
     }
 
@@ -153,6 +159,11 @@ class ApiCalendarRepository implements CalendarRepository {
 
     final raw = response.data;
     if (raw is! Map) {
+      AppLogger.e(
+        'Failed to parse created calendar event payload',
+        StateError('Invalid created event payload.'),
+        StackTrace.current,
+      );
       throw StateError('Invalid created event payload.');
     }
     return _parseEvent(Map<String, dynamic>.from(raw));
@@ -196,6 +207,11 @@ class ApiCalendarRepository implements CalendarRepository {
     final response = await _apiClient.dio.get('/me/event-categories');
     final raw = response.data;
     if (raw is! List) {
+      AppLogger.e(
+        'Failed to parse event categories payload',
+        StateError('Invalid categories payload.'),
+        StackTrace.current,
+      );
       throw StateError('Invalid categories payload.');
     }
 
@@ -225,6 +241,11 @@ class ApiCalendarRepository implements CalendarRepository {
     );
     final raw = response.data;
     if (raw is! Map) {
+      AppLogger.e(
+        'Failed to parse created category payload',
+        StateError('Invalid created category payload.'),
+        StackTrace.current,
+      );
       throw StateError('Invalid created category payload.');
     }
     final map = Map<String, dynamic>.from(raw);
@@ -258,6 +279,11 @@ class ApiCalendarRepository implements CalendarRepository {
     );
     final raw = response.data;
     if (raw is! Map) {
+      AppLogger.e(
+        'Failed to parse updated category payload',
+        StateError('Invalid updated category payload.'),
+        StackTrace.current,
+      );
       throw StateError('Invalid updated category payload.');
     }
     final map = Map<String, dynamic>.from(raw);
@@ -276,21 +302,30 @@ class ApiCalendarRepository implements CalendarRepository {
   }
 
   CalendarEventItem _parseEvent(Map<String, dynamic> map) {
-    final categoryRaw = map['category'];
-    if (categoryRaw is! Map) {
-      throw StateError('Invalid event.category payload.');
-    }
-    final category = Map<String, dynamic>.from(categoryRaw);
+    try {
+      final categoryRaw = map['category'];
+      if (categoryRaw is! Map) {
+        throw StateError('Invalid event.category payload.');
+      }
+      final category = Map<String, dynamic>.from(categoryRaw);
 
-    return CalendarEventItem(
-      id: _requiredString(map['id'], 'id'),
-      title: _requiredString(map['title'], 'title'),
-      startsAt: _requiredDateTime(map['startsAt'], 'startsAt'),
-      endsAt: _requiredDateTime(map['endsAt'], 'endsAt'),
-      categoryId: _requiredString(category['id'], 'category.id'),
-      categoryName: _requiredString(category['title'], 'category.title'),
-      categoryColor: _requiredString(category['color'], 'category.color'),
-    );
+      return CalendarEventItem(
+        id: _requiredString(map['id'], 'id'),
+        title: _requiredString(map['title'], 'title'),
+        startsAt: _requiredDateTime(map['startsAt'], 'startsAt'),
+        endsAt: _requiredDateTime(map['endsAt'], 'endsAt'),
+        categoryId: _requiredString(category['id'], 'category.id'),
+        categoryName: _requiredString(category['title'], 'category.title'),
+        categoryColor: _requiredString(category['color'], 'category.color'),
+      );
+    } catch (error, stackTrace) {
+      AppLogger.e(
+        'Failed to parse CalendarEventItem data=${AppLogger.pretty(map)}',
+        error,
+        stackTrace,
+      );
+      rethrow;
+    }
   }
 
   Future<String> _resolveCategoryIdByColor(int argbColor) async {
@@ -311,6 +346,11 @@ class ApiCalendarRepository implements CalendarRepository {
     );
     final raw = response.data;
     if (raw is! Map) {
+      AppLogger.e(
+        'Failed to parse auto-created category payload',
+        StateError('Invalid created category payload.'),
+        StackTrace.current,
+      );
       throw StateError('Invalid created category payload.');
     }
     final map = Map<String, dynamic>.from(raw);

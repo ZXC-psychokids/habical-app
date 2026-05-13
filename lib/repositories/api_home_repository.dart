@@ -1,4 +1,5 @@
 import '../core/api_client.dart';
+import '../core/app_logger.dart';
 import '../models/home_data.dart';
 import '../models/home_day_event_item.dart';
 import '../models/home_feed_entry.dart';
@@ -46,6 +47,11 @@ class ApiHomeRepository implements HomeRepository {
     final rawEvents = results[1].data;
     final rawFeed = results[2].data;
     if (rawTasks is! List || rawEvents is! List || rawFeed is! Map) {
+      AppLogger.e(
+        'Failed to parse HomeData payload',
+        StateError('Invalid home payload.'),
+        StackTrace.current,
+      );
       throw StateError('Invalid home payload.');
     }
 
@@ -61,6 +67,11 @@ class ApiHomeRepository implements HomeRepository {
     final feedMap = Map<String, dynamic>.from(rawFeed);
     final rawItems = feedMap['items'];
     if (rawItems is! List) {
+      AppLogger.e(
+        'Failed to parse HomeFeed items payload',
+        StateError('Invalid feed items payload.'),
+        StackTrace.current,
+      );
       throw StateError('Invalid feed items payload.');
     }
     final feedEntries = rawItems
@@ -107,6 +118,11 @@ class ApiHomeRepository implements HomeRepository {
 
     final raw = response.data;
     if (raw is! Map) {
+      AppLogger.e(
+        'Failed to parse created HomeTask payload',
+        StateError('Invalid created task payload.'),
+        StackTrace.current,
+      );
       throw StateError('Invalid created task payload.');
     }
     return _parseTask(Map<String, dynamic>.from(raw));
@@ -140,6 +156,11 @@ class ApiHomeRepository implements HomeRepository {
     final response = await _apiClient.dio.patch('/me/tasks/$taskId', data: data);
     final raw = response.data;
     if (raw is! Map) {
+      AppLogger.e(
+        'Failed to parse updated HomeTask payload',
+        StateError('Invalid updated task payload.'),
+        StackTrace.current,
+      );
       throw StateError('Invalid updated task payload.');
     }
     return _parseTask(Map<String, dynamic>.from(raw));
@@ -180,6 +201,11 @@ class ApiHomeRepository implements HomeRepository {
 
     final raw = response.data;
     if (raw is! Map) {
+      AppLogger.e(
+        'Failed to parse linked HomeTask payload',
+        StateError('Invalid linked task payload.'),
+        StackTrace.current,
+      );
       throw StateError('Invalid linked task payload.');
     }
     return _parseTask(Map<String, dynamic>.from(raw));
@@ -191,6 +217,7 @@ class ApiHomeRepository implements HomeRepository {
   }
 
   HomeTaskItem _parseTask(Map<String, dynamic> map) {
+    try {
     final habitMap = _asMap(map['habit']);
     final eventMap = _asMap(map['event']);
 
@@ -216,9 +243,18 @@ class ApiHomeRepository implements HomeRepository {
               endsAt: _requiredDateTime(eventMap['endsAt'], 'event.endsAt'),
             ),
     );
+    } catch (error, stackTrace) {
+      AppLogger.e(
+        'Failed to parse HomeTaskItem data=${AppLogger.pretty(map)}',
+        error,
+        stackTrace,
+      );
+      rethrow;
+    }
   }
 
   HomeDayEventItem _parseEvent(Map<String, dynamic> map) {
+    try {
     final categoryMap = _asMap(map['category']);
     if (categoryMap == null) {
       throw StateError('Event category is missing.');
@@ -240,9 +276,18 @@ class ApiHomeRepository implements HomeRepository {
               title: _requiredString(taskMap['title'], 'task.title'),
             ),
     );
+    } catch (error, stackTrace) {
+      AppLogger.e(
+        'Failed to parse HomeDayEventItem data=${AppLogger.pretty(map)}',
+        error,
+        stackTrace,
+      );
+      rethrow;
+    }
   }
 
   HomeFeedEntry _parseFeedEntry(Map<String, dynamic> map) {
+    try {
     final actorMap = _asMap(map['actor']);
     if (actorMap == null) {
       throw StateError('Feed actor is missing.');
@@ -288,6 +333,14 @@ class ApiHomeRepository implements HomeRepository {
       streakValue: _nullableInt(map['streakValue']),
       createdAt: _requiredDateTime(map['createdAt'], 'createdAt'),
     );
+    } catch (error, stackTrace) {
+      AppLogger.e(
+        'Failed to parse HomeFeedEntry data=${AppLogger.pretty(map)}',
+        error,
+        stackTrace,
+      );
+      rethrow;
+    }
   }
 
   HomeFeedType _parseFeedType(String value) {

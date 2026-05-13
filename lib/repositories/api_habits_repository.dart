@@ -1,4 +1,5 @@
 import '../core/api_client.dart';
+import '../core/app_logger.dart';
 import '../models/models.dart';
 import '../services/streak_service.dart';
 import 'habits_repository.dart';
@@ -22,13 +23,30 @@ class ApiHabitsRepository implements HabitsRepository {
 
     final rawList = response.data;
     if (rawList is! List) {
-      throw StateError('Некорректный формат списка привычек.');
+      AppLogger.e(
+        'Failed to parse habits list payload',
+        StateError('Invalid habits list payload.'),
+        StackTrace.current,
+      );
+      throw StateError('РќРµРєРѕСЂСЂРµРєС‚РЅС‹Р№ С„РѕСЂРјР°С‚ СЃРїРёСЃРєР° РїСЂРёРІС‹С‡РµРє.');
     }
 
     final targetDate = asOf ?? DateTime.now();
 
     final habits = rawList
-        .map((item) => Habit.fromMap(Map<String, dynamic>.from(item as Map)))
+        .map((item) => Map<String, dynamic>.from(item as Map))
+        .map((map) {
+          try {
+            return Habit.fromMap(map);
+          } catch (error, stackTrace) {
+            AppLogger.e(
+              'Failed to parse Habit data=${AppLogger.pretty(map)}',
+              error,
+              stackTrace,
+            );
+            rethrow;
+          }
+        })
         .toList(growable: false);
 
     final result = <HabitListItem>[];
@@ -63,7 +81,7 @@ class ApiHabitsRepository implements HabitsRepository {
   }) async {
     final normalizedTitle = title.trim();
     if (normalizedTitle.isEmpty) {
-      throw ArgumentError('Название привычки не может быть пустым.');
+      throw ArgumentError('РќР°Р·РІР°РЅРёРµ РїСЂРёРІС‹С‡РєРё РЅРµ РјРѕР¶РµС‚ Р±С‹С‚СЊ РїСѓСЃС‚С‹Рј.');
     }
 
     final response = await _apiClient.dio.post(
@@ -77,10 +95,25 @@ class ApiHabitsRepository implements HabitsRepository {
 
     final raw = response.data;
     if (raw is! Map) {
-      throw StateError('Некорректный формат созданной привычки.');
+      AppLogger.e(
+        'Failed to parse created habit payload',
+        StateError('Invalid created habit payload.'),
+        StackTrace.current,
+      );
+      throw StateError('РќРµРєРѕСЂСЂРµРєС‚РЅС‹Р№ С„РѕСЂРјР°С‚ СЃРѕР·РґР°РЅРЅРѕР№ РїСЂРёРІС‹С‡РєРё.');
     }
 
-    return Habit.fromMap(Map<String, dynamic>.from(raw));
+    final rawMap = Map<String, dynamic>.from(raw);
+    try {
+      return Habit.fromMap(rawMap);
+    } catch (error, stackTrace) {
+      AppLogger.e(
+        'Failed to parse created Habit data=${AppLogger.pretty(rawMap)}',
+        error,
+        stackTrace,
+      );
+      rethrow;
+    }
   }
 
   @override
@@ -88,10 +121,27 @@ class ApiHabitsRepository implements HabitsRepository {
     final habitResponse = await _apiClient.dio.get('/habits/$habitId');
     final habitRaw = habitResponse.data;
     if (habitRaw is! Map) {
-      throw StateError('Некорректный формат привычки.');
+      AppLogger.e(
+        'Failed to parse habit details payload',
+        StateError('Invalid habit details payload.'),
+        StackTrace.current,
+      );
+      throw StateError('РќРµРєРѕСЂСЂРµРєС‚РЅС‹Р№ С„РѕСЂРјР°С‚ РїСЂРёРІС‹С‡РєРё.');
     }
 
-    final habit = Habit.fromMap(Map<String, dynamic>.from(habitRaw));
+    final habitMap = Map<String, dynamic>.from(habitRaw);
+    final habit = (() {
+      try {
+        return Habit.fromMap(habitMap);
+      } catch (error, stackTrace) {
+        AppLogger.e(
+          'Failed to parse Habit details data=${AppLogger.pretty(habitMap)}',
+          error,
+          stackTrace,
+        );
+        rethrow;
+      }
+    })();
     final tasks = await _fetchTasksForHabit(habitId);
 
     tasks.sort((a, b) => a.startsAt.compareTo(b.startsAt));
@@ -103,11 +153,28 @@ class ApiHabitsRepository implements HabitsRepository {
 
     final rawList = response.data;
     if (rawList is! List) {
-      throw StateError('Некорректный формат списка задач привычки.');
+      AppLogger.e(
+        'Failed to parse habit tasks payload',
+        StateError('Invalid habit tasks payload.'),
+        StackTrace.current,
+      );
+      throw StateError('РќРµРєРѕСЂСЂРµРєС‚РЅС‹Р№ С„РѕСЂРјР°С‚ СЃРїРёСЃРєР° Р·Р°РґР°С‡ РїСЂРёРІС‹С‡РєРё.');
     }
 
     return rawList
-        .map((item) => Task.fromMap(Map<String, dynamic>.from(item as Map)))
+        .map((item) => Map<String, dynamic>.from(item as Map))
+        .map((map) {
+          try {
+            return Task.fromMap(map);
+          } catch (error, stackTrace) {
+            AppLogger.e(
+              'Failed to parse Habit Task data=${AppLogger.pretty(map)}',
+              error,
+              stackTrace,
+            );
+            rethrow;
+          }
+        })
         .toList(growable: false);
   }
 }

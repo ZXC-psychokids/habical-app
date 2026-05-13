@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 
 import '../core/api_client.dart';
+import '../core/app_logger.dart';
 import '../services/session_service.dart';
 
 class AuthRepository {
@@ -50,6 +51,11 @@ class AuthRepository {
   Future<void> refresh() async {
     final refreshToken = _sessionService.refreshToken;
     if (refreshToken == null || refreshToken.isEmpty) {
+      AppLogger.e(
+        'AuthRepository.refresh failed: no refresh token in session',
+        StateError('No refresh token in session.'),
+        StackTrace.current,
+      );
       throw StateError('No refresh token in session.');
     }
 
@@ -106,6 +112,11 @@ class AuthRepository {
     final response = await _apiClient.dio.get('/me');
     final raw = response.data;
     if (raw is! Map) {
+      AppLogger.e(
+        'AuthRepository.fetchMe failed: invalid /me payload',
+        StateError('Invalid /me payload.'),
+        StackTrace.current,
+      );
       throw StateError('Invalid /me payload.');
     }
     return Map<String, dynamic>.from(raw);
@@ -113,12 +124,22 @@ class AuthRepository {
 
   SessionTokens _extractTokens(dynamic data) {
     if (data is! Map) {
+      AppLogger.e(
+        'AuthRepository._extractTokens failed: invalid auth payload',
+        StateError('Invalid auth payload.'),
+        StackTrace.current,
+      );
       throw StateError('Invalid auth payload.');
     }
 
     final map = Map<String, dynamic>.from(data);
     final rawTokens = map['tokens'];
     if (rawTokens is! Map) {
+      AppLogger.e(
+        'AuthRepository._extractTokens failed: response has no tokens',
+        StateError('Auth response does not contain tokens.'),
+        StackTrace.current,
+      );
       throw StateError('Auth response does not contain tokens.');
     }
 
@@ -127,6 +148,11 @@ class AuthRepository {
 
   SessionTokens _extractTokenPair(dynamic data) {
     if (data is! Map) {
+      AppLogger.e(
+        'AuthRepository._extractTokenPair failed: invalid token payload',
+        StateError('Invalid token payload.'),
+        StackTrace.current,
+      );
       throw StateError('Invalid token payload.');
     }
 
@@ -134,9 +160,19 @@ class AuthRepository {
     final accessToken = map['accessToken'];
     final refreshToken = map['refreshToken'];
     if (accessToken is! String || accessToken.isEmpty) {
+      AppLogger.e(
+        'AuthRepository._extractTokenPair failed: invalid access token',
+        StateError('Invalid access token.'),
+        StackTrace.current,
+      );
       throw StateError('Invalid access token.');
     }
     if (refreshToken is! String || refreshToken.isEmpty) {
+      AppLogger.e(
+        'AuthRepository._extractTokenPair failed: invalid refresh token',
+        StateError('Invalid refresh token.'),
+        StackTrace.current,
+      );
       throw StateError('Invalid refresh token.');
     }
 
