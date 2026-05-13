@@ -2,33 +2,24 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../repositories/auth_repository.dart';
+import 'settings_calendar_screen.dart';
+import 'settings_notifications_screen.dart';
+import 'settings_ui_tokens.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
 
-  static const _backgroundColor = Color(0xFFFFFFFF);
-  static const _cardColor = Color(0xFFFFFFFF);
-  static const _accentBlue = Color(0xFF0277BC);
-  static const _titleColor = Color(0xFF0C0C0C);
-  static const _dividerColor = Color(0xFFB5B5B5);
-  static const _secondaryTextColor = Color(0xFFB5B5B5);
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _backgroundColor,
+      backgroundColor: SettingsUiTokens.screenBackground,
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(25, 32, 25, 20),
+          padding: SettingsUiTokens.pagePadding,
           children: [
             const Text(
               'Настройки',
-              style: TextStyle(
-                fontSize: 32,
-                height: 1.08,
-                fontWeight: FontWeight.w700,
-                color: _titleColor,
-              ),
+              style: SettingsUiTokens.screenTitle,
             ),
             const SizedBox(height: 46),
             _SettingsCard(onLogout: () => _logout(context)),
@@ -73,16 +64,9 @@ class _SettingsCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: SettingsScreen._cardColor,
-        borderRadius: BorderRadius.circular(15),
-        boxShadow: const [
-          BoxShadow(
-            color: Color.fromRGBO(29, 39, 51, 0.30),
-            offset: Offset(0, 4),
-            blurRadius: 10.1,
-            spreadRadius: 0,
-          ),
-        ],
+        color: SettingsUiTokens.cardBackground,
+        borderRadius: SettingsUiTokens.cardRadius,
+        boxShadow: const [SettingsUiTokens.cardShadow],
       ),
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
       child: Column(
@@ -91,9 +75,7 @@ class _SettingsCard extends StatelessWidget {
             icon: Icons.person_outline,
             title: 'Профиль',
             trailingBuilder: (isActive) => _Chevron(
-              color: isActive
-                  ? SettingsScreen._accentBlue
-                  : const Color(0xFF171717),
+              color: isActive ? SettingsUiTokens.accentBlue : const Color(0xFF171717),
             ),
             onTap: () {},
           ),
@@ -104,10 +86,10 @@ class _SettingsCard extends StatelessWidget {
             trailingBuilder: (isActive) => Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
+                const Text(
                   'Русский',
                   style: TextStyle(
-                    color: SettingsScreen._secondaryTextColor,
+                    color: SettingsUiTokens.mutedText,
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
                   ),
@@ -115,7 +97,7 @@ class _SettingsCard extends StatelessWidget {
                 const SizedBox(width: 10),
                 _Chevron(
                   color: isActive
-                      ? SettingsScreen._accentBlue
+                      ? SettingsUiTokens.accentBlue
                       : const Color(0xFF171717),
                 ),
               ],
@@ -127,9 +109,7 @@ class _SettingsCard extends StatelessWidget {
             icon: Icons.palette_outlined,
             title: 'Внешний вид',
             trailingBuilder: (isActive) => _Chevron(
-              color: isActive
-                  ? SettingsScreen._accentBlue
-                  : const Color(0xFF171717),
+              color: isActive ? SettingsUiTokens.accentBlue : const Color(0xFF171717),
             ),
             onTap: () {},
           ),
@@ -138,31 +118,37 @@ class _SettingsCard extends StatelessWidget {
             icon: Icons.calendar_today_outlined,
             title: 'Календарь',
             trailingBuilder: (isActive) => _Chevron(
-              color: isActive
-                  ? SettingsScreen._accentBlue
-                  : const Color(0xFF171717),
+              color: isActive ? SettingsUiTokens.accentBlue : const Color(0xFF171717),
             ),
-            onTap: () {},
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const SettingsCalendarScreen(),
+                ),
+              );
+            },
           ),
           const _RowDivider(),
           _SettingsRow(
             icon: Icons.notifications_none_outlined,
             title: 'Уведомления',
             trailingBuilder: (isActive) => _Chevron(
-              color: isActive
-                  ? SettingsScreen._accentBlue
-                  : const Color(0xFF171717),
+              color: isActive ? SettingsUiTokens.accentBlue : const Color(0xFF171717),
             ),
-            onTap: () {},
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const SettingsNotificationsScreen(),
+                ),
+              );
+            },
           ),
           const _RowDivider(),
           _SettingsRow(
             icon: Icons.build_outlined,
             title: 'Поддержка',
             trailingBuilder: (isActive) => _Chevron(
-              color: isActive
-                  ? SettingsScreen._accentBlue
-                  : const Color(0xFF171717),
+              color: isActive ? SettingsUiTokens.accentBlue : const Color(0xFF171717),
             ),
             onTap: () {},
           ),
@@ -171,9 +157,7 @@ class _SettingsCard extends StatelessWidget {
             icon: Icons.logout,
             title: 'Выйти из аккаунта',
             trailingBuilder: (isActive) => _Chevron(
-              color: isActive
-                  ? SettingsScreen._accentBlue
-                  : const Color(0xFF171717),
+              color: isActive ? SettingsUiTokens.accentBlue : const Color(0xFF171717),
             ),
             onTap: onLogout,
           ),
@@ -189,7 +173,7 @@ class _SettingsRow extends StatefulWidget {
     required this.title,
     required this.trailingBuilder,
     required this.onTap,
-    this.titleColor = const Color(0xFF111111),
+    this.titleColor = SettingsUiTokens.primaryText,
   });
 
   final IconData icon;
@@ -209,12 +193,12 @@ class _SettingsRowState extends State<_SettingsRow> {
   @override
   Widget build(BuildContext context) {
     final isActive = _isHovered || _isPressed;
-    final titleColor = isActive ? SettingsScreen._accentBlue : widget.titleColor;
+    final titleColor = isActive ? SettingsUiTokens.accentBlue : widget.titleColor;
 
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        borderRadius: BorderRadius.circular(15),
+        borderRadius: SettingsUiTokens.itemRadius,
         onTap: widget.onTap,
         onHover: (hovered) => setState(() => _isHovered = hovered),
         onHighlightChanged: (pressed) => setState(() => _isPressed = pressed),
@@ -225,9 +209,9 @@ class _SettingsRowState extends State<_SettingsRow> {
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 120),
           curve: Curves.easeOutCubic,
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
             color: Colors.transparent,
-            borderRadius: BorderRadius.circular(15),
+            borderRadius: SettingsUiTokens.itemRadius,
           ),
           padding: const EdgeInsets.symmetric(vertical: 10),
           child: Row(
@@ -235,9 +219,9 @@ class _SettingsRowState extends State<_SettingsRow> {
               Container(
                 width: 30,
                 height: 30,
-                decoration: BoxDecoration(
-                  color: SettingsScreen._accentBlue,
-                  borderRadius: BorderRadius.circular(10),
+                decoration: const BoxDecoration(
+                  color: SettingsUiTokens.accentBlue,
+                  borderRadius: SettingsUiTokens.iconRadius,
                 ),
                 child: Icon(widget.icon, size: 17, color: Colors.white),
               ),
@@ -282,7 +266,7 @@ class _RowDivider extends StatelessWidget {
       child: Divider(
         height: 1,
         thickness: 1,
-        color: SettingsScreen._dividerColor,
+        color: SettingsUiTokens.divider,
       ),
     );
   }
