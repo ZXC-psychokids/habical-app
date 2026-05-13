@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../repositories/calendar_repository.dart';
 
@@ -43,6 +44,8 @@ class CalendarScreen extends StatefulWidget {
 }
 
 class _CalendarScreenState extends State<CalendarScreen> {
+  static const _prefsShowWeekNumbersKey = 'settings.calendar.showWeekNumbers';
+  static const _prefsShowWeekDaysKey = 'settings.calendar.showWeekDays';
   static const _hourHeight = 62.0;
   late DateTime _focusDate;
   late DateTime _now;
@@ -51,6 +54,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
   bool _isLoadingEvents = false;
   String? _eventsError;
   List<CalendarEventItem> _rangeEvents = const [];
+  List<EventCategoryItem> _categories = const [];
+  bool _showWeekNumbers = true;
+  bool _showWeekDays = false;
 
   @override
   void initState() {
@@ -67,6 +73,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
       return;
     }
     _didLoadInitial = true;
+    unawaited(_loadCalendarUiSettings());
+    unawaited(_loadCategories());
     unawaited(_loadEventsForVisibleRange());
   }
 
@@ -191,6 +199,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
           days: visibleDays,
           events: events,
           focusDate: _focusDate,
+          showWeekDays: _showWeekDays,
+          showWeekNumbers: _showWeekNumbers,
           onTapEvent: (event) => _openDayFromMonthTap(event.startsAt),
           onTapDay: _openDayFromMonthTap,
         ),
@@ -204,6 +214,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
         hourHeight: _hourHeight,
         events: events,
         now: _now,
+        showWeekDays: _showWeekDays,
+        showWeekNumbers: _showWeekNumbers,
         onTapSlot: (startAt) {
           unawaited(
             _openQuickCreateEventSheet(initialStart: startAt),
@@ -315,6 +327,35 @@ class _CalendarScreenState extends State<CalendarScreen> {
         RepositoryProvider.of<CalendarRepository>(context);
   }
 
+  Future<void> _loadCalendarUiSettings() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _showWeekNumbers = prefs.getBool(_prefsShowWeekNumbersKey) ?? true;
+        _showWeekDays = prefs.getBool(_prefsShowWeekDaysKey) ?? false;
+      });
+    } catch (_) {
+      // Keep defaults if preferences are unavailable.
+    }
+  }
+
+  Future<void> _loadCategories() async {
+    try {
+      final categories = await _calendarRepository.fetchCategories();
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _categories = categories;
+      });
+    } catch (_) {
+      // Keep existing categories on transient failures.
+    }
+  }
+
   Future<void> _loadEventsForVisibleRange() async {
     final visibleDays = _visibleDaysForScale();
     if (visibleDays.isEmpty) {
@@ -364,6 +405,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 title: item.title,
                 startsAt: item.startsAt,
                 endsAt: item.endsAt,
+                categoryId: item.categoryId,
+                categoryName: item.categoryName,
                 color: _pastel(stripe),
                 stripe: stripe,
               );
@@ -430,6 +473,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   Future<void> _openQuickCreateEventSheet({DateTime? initialStart}) async {
+    if (_categories.isEmpty) {
+      await _loadCategories();
+    }
     final draft = await showModalBottomSheet<_CreateEventDraft>(
       context: context,
       isScrollControlled: true,
@@ -437,6 +483,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
       builder: (_) {
         return _NotionQuickCreateEventSheet(
           initialStart: initialStart ?? _suggestStartDateTime(),
+          categories: _categories,
         );
       },
     );
@@ -451,6 +498,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
         startsAt: draft.startsAt,
         endsAt: draft.endsAt,
         repeatRule: draft.repeatRule,
+        categoryId: draft.categoryId,
         categoryColorValue: draft.color.toARGB32(),
       );
       if (!mounted) {
@@ -498,6 +546,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
     }
 
     var deleteRequested = false;
+    if (_categories.isEmpty) {
+      await _loadCategories();
+    }
     final draft = await showModalBottomSheet<_CreateEventDraft>(
       context: context,
       isScrollControlled: true,
@@ -507,12 +558,14 @@ class _CalendarScreenState extends State<CalendarScreen> {
           initialStart: card.startsAt,
           initialEnd: card.endsAt,
           initialTitle: card.title,
+          initialCategoryId: card.categoryId,
           initialColor: card.stripe,
           showDelete: true,
           onDeleteRequested: () {
             deleteRequested = true;
           },
           submitLabel: '\u0421\u043e\u0445\u0440\u0430\u043d\u0438\u0442\u044c',
+          categories: _categories,
         );
       },
     );
@@ -562,6 +615,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
         startsAt: draft.startsAt,
         endsAt: draft.endsAt,
         repeatRule: draft.repeatRule,
+        categoryId: draft.categoryId,
         categoryColorValue: draft.color.toARGB32(),
       );
 
@@ -747,6 +801,8 @@ class _WeekTimeGrid extends StatelessWidget {
     required this.hourHeight,
     required this.events,
     required this.now,
+    required this.showWeekDays,
+    required this.showWeekNumbers,
     required this.onTapSlot,
     required this.onTapEvent,
   });
@@ -755,6 +811,8 @@ class _WeekTimeGrid extends StatelessWidget {
   final double hourHeight;
   final List<CalendarEventCard> events;
   final DateTime now;
+  final bool showWeekDays;
+  final bool showWeekNumbers;
   final ValueChanged<DateTime> onTapSlot;
   final ValueChanged<CalendarEventCard> onTapEvent;
 
@@ -771,10 +829,14 @@ class _WeekTimeGrid extends StatelessWidget {
 
     return Column(
       children: [
-        _DaysHeader(days: days),
+        _DaysHeader(
+          days: days,
+          showWeekDays: showWeekDays,
+          showWeekNumbers: showWeekNumbers,
+        ),
         Expanded(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.only(bottom: 96),
+            padding: const EdgeInsets.only(bottom: 28),
             child: SizedBox(
               height: gridHeight,
               child: LayoutBuilder(
@@ -889,67 +951,97 @@ class _WeekTimeGrid extends StatelessWidget {
 }
 
 class _DaysHeader extends StatelessWidget {
-  const _DaysHeader({required this.days});
+  const _DaysHeader({
+    required this.days,
+    required this.showWeekDays,
+    required this.showWeekNumbers,
+  });
 
   final List<DateTime> days;
+  final bool showWeekDays;
+  final bool showWeekNumbers;
 
   @override
   Widget build(BuildContext context) {
     final now = DateTime.now();
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(56, 0, 0, 0),
-      child: Row(
-        children: days
-            .map((day) {
-              final isToday =
-                  day.year == now.year &&
-                  day.month == now.month &&
-                  day.day == now.day;
-              return Expanded(
-                child: Container(
-                  height: 46,
-                  decoration: BoxDecoration(
-                    border: Border(
-                      left: const BorderSide(color: Color(0x14000000)),
-                      top: const BorderSide(color: Color(0x14000000)),
-                      right: const BorderSide(color: Color(0x14000000)),
-                      bottom: BorderSide(
-                        color: isToday
-                            ? const Color(0xFF3A8DDE)
-                            : const Color(0x14000000),
-                        width: isToday ? 2 : 1,
-                      ),
-                    ),
-                    color: isToday ? const Color(0xFFF4FAFF) : Colors.white,
-                  ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        _weekday(day.weekday),
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: Color(0xFF8A909C),
-                          fontWeight: FontWeight.w600,
+    return Stack(
+      children: [
+        Row(
+          children: [
+            const SizedBox(width: 56),
+            Expanded(
+              child: Row(
+                children: days
+                    .map((day) {
+                      final isToday =
+                          day.year == now.year &&
+                          day.month == now.month &&
+                          day.day == now.day;
+                      return Expanded(
+                        child: Container(
+                          height: 46,
+                          decoration: BoxDecoration(
+                            border: Border(
+                              left: const BorderSide(color: Color(0x14000000)),
+                              top: const BorderSide(color: Color(0x14000000)),
+                              right: const BorderSide(color: Color(0x14000000)),
+                              bottom: BorderSide(
+                                color: isToday
+                                    ? const Color(0xFF3A8DDE)
+                                    : const Color(0x14000000),
+                                width: isToday ? 2 : 1,
+                              ),
+                            ),
+                            color: isToday
+                                ? const Color(0xFFF4FAFF)
+                                : Colors.white,
+                          ),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              if (showWeekDays)
+                                Text(
+                                  _weekday(day.weekday),
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    color: Color(0xFF8A909C),
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              Text(
+                                '${day.day}',
+                                style: TextStyle(
+                                  fontSize: showWeekDays ? 14 : 15,
+                                  fontWeight: FontWeight.w700,
+                                  color: isToday
+                                      ? const Color(0xFF2073C7)
+                                      : const Color(0xFF31353D),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                      Text(
-                        '${day.day}',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          color: isToday
-                              ? const Color(0xFF2073C7)
-                              : const Color(0xFF31353D),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            })
-            .toList(growable: false),
-      ),
+                      );
+                    })
+                    .toList(growable: false),
+              ),
+            ),
+          ],
+        ),
+        if (showWeekNumbers)
+          Positioned(
+            left: 8,
+            top: 14,
+            child: Text(
+              '${_isoWeekNumber(days.first)}',
+              style: const TextStyle(
+                fontSize: 11,
+                color: Color(0xFF8A909C),
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+      ],
     );
   }
 
@@ -975,23 +1067,43 @@ class _TimeRail extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       width: 56,
-      child: Column(
-        children: List.generate(24, (hour) {
-          return SizedBox(
-            height: hourHeight,
-            child: Align(
-              alignment: Alignment.topCenter,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Column(
+            children: List.generate(24, (hour) {
+              return SizedBox(
+                height: hourHeight,
+                child: Align(
+                  alignment: Alignment.topCenter,
+                  child: Text(
+                    _formatHour(hour),
+                    style: const TextStyle(
+                      fontSize: 10,
+                      color: Color(0xFF9AA1AD),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              );
+            }),
+          ),
+          const Positioned(
+            left: 0,
+            right: 0,
+            bottom: -10,
+            child: Center(
               child: Text(
-                _formatHour(hour),
-                style: const TextStyle(
+                '00:00',
+                style: TextStyle(
                   fontSize: 10,
                   color: Color(0xFF9AA1AD),
                   fontWeight: FontWeight.w600,
                 ),
               ),
             ),
-          );
-        }),
+          ),
+        ],
       ),
     );
   }
@@ -1042,10 +1154,13 @@ class _DayEventsColumn extends StatelessWidget {
                 height: hourHeight,
                 decoration: BoxDecoration(
                   color: isToday ? const Color(0xFFF8FCFF) : Colors.white,
-                  border: const Border(
-                    left: BorderSide(color: Color(0x14000000)),
-                    right: BorderSide(color: Color(0x14000000)),
-                    top: BorderSide(color: Color(0x11000000)),
+                  border: Border(
+                    left: const BorderSide(color: Color(0x14000000)),
+                    right: const BorderSide(color: Color(0x14000000)),
+                    top: const BorderSide(color: Color(0x11000000)),
+                    bottom: hour == 23
+                        ? const BorderSide(color: Color(0x11000000))
+                        : BorderSide.none,
                   ),
                 ),
               );
@@ -1131,6 +1246,8 @@ class _MonthLikeBoard extends StatelessWidget {
     required this.days,
     required this.events,
     required this.focusDate,
+    required this.showWeekDays,
+    required this.showWeekNumbers,
     required this.onTapEvent,
     required this.onTapDay,
   });
@@ -1138,6 +1255,8 @@ class _MonthLikeBoard extends StatelessWidget {
   final List<DateTime> days;
   final List<CalendarEventCard> events;
   final DateTime focusDate;
+  final bool showWeekDays;
+  final bool showWeekNumbers;
   final ValueChanged<CalendarEventCard> onTapEvent;
   final ValueChanged<DateTime> onTapDay;
 
@@ -1151,8 +1270,11 @@ class _MonthLikeBoard extends StatelessWidget {
     return Column(
       children: [
         const SizedBox(height: 6),
-        const _MonthWeekHeader(),
-        const SizedBox(height: 6),
+        _MonthWeekHeader(
+          showWeekDays: showWeekDays,
+          showWeekNumbers: showWeekNumbers,
+        ),
+        if (showWeekDays) const SizedBox(height: 6),
         Expanded(
           child: ListView.separated(
             padding: const EdgeInsets.fromLTRB(8, 0, 8, 96),
@@ -1163,23 +1285,43 @@ class _MonthLikeBoard extends StatelessWidget {
               return SizedBox(
                 height: 124,
                 child: Row(
-                  children: weekDays
-                      .map((day) {
-                        final dayEvents = events
-                            .where((event) => _sameDay(event.day, day))
-                            .toList(growable: false);
-                        return Expanded(
-                          child: _MonthDayCell(
-                            day: day,
-                            inCurrentMonth: day.month == focusDate.month,
-                            isToday: _sameDay(day, DateTime.now()),
-                            events: dayEvents,
-                            onTapEvent: onTapEvent,
-                            onTap: () => onTapDay(day),
+                  children: [
+                    if (showWeekNumbers)
+                      SizedBox(
+                        width: 26,
+                        child: Center(
+                          child: Text(
+                            '${_isoWeekNumber(weekDays.first)}',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF8A909C),
+                            ),
                           ),
-                        );
-                      })
-                      .toList(growable: false),
+                        ),
+                      ),
+                    Expanded(
+                      child: Row(
+                        children: weekDays
+                            .map((day) {
+                              final dayEvents = events
+                                  .where((event) => _sameDay(event.day, day))
+                                  .toList(growable: false);
+                              return Expanded(
+                                child: _MonthDayCell(
+                                  day: day,
+                                  inCurrentMonth: day.month == focusDate.month,
+                                  isToday: _sameDay(day, DateTime.now()),
+                                  events: dayEvents,
+                                  onTapEvent: onTapEvent,
+                                  onTap: () => onTapDay(day),
+                                ),
+                              );
+                            })
+                            .toList(growable: false),
+                      ),
+                    ),
+                  ],
                 ),
               );
             },
@@ -1195,10 +1337,19 @@ class _MonthLikeBoard extends StatelessWidget {
 }
 
 class _MonthWeekHeader extends StatelessWidget {
-  const _MonthWeekHeader();
+  const _MonthWeekHeader({
+    required this.showWeekDays,
+    required this.showWeekNumbers,
+  });
+
+  final bool showWeekDays;
+  final bool showWeekNumbers;
 
   @override
   Widget build(BuildContext context) {
+    if (!showWeekDays) {
+      return const SizedBox.shrink();
+    }
     const days = [
       '\u041f\u043d',
       '\u0412\u0442',
@@ -1211,22 +1362,23 @@ class _MonthWeekHeader extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8),
       child: Row(
-        children: days
-            .map((day) {
-              return Expanded(
-                child: Center(
-                  child: Text(
-                    day,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF8A909C),
-                    ),
+        children: [
+          if (showWeekNumbers) const SizedBox(width: 26),
+          ...days.map((day) {
+            return Expanded(
+              child: Center(
+                child: Text(
+                  day,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF8A909C),
                   ),
                 ),
-              );
-            })
-            .toList(growable: false),
+              ),
+            );
+          }),
+        ],
       ),
     );
   }
@@ -1336,14 +1488,21 @@ class _ScheduleList extends StatelessWidget {
       itemBuilder: (context, index) {
         final item = events[index];
         return InkWell(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(15),
           onTap: () => onTapEvent(item),
           child: Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: const Color(0xFFF7F8FA),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: const Color(0x18000000)),
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(15),
+              border: Border.all(color: const Color(0xFFD9D9D9)),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x4D1D2733),
+                  blurRadius: 10.1,
+                  offset: Offset(0, 4),
+                ),
+              ],
             ),
             child: Row(
               children: [
@@ -1405,6 +1564,7 @@ class _CreateEventDraft {
     required this.startsAt,
     required this.endsAt,
     required this.repeatRule,
+    required this.categoryId,
     required this.color,
   });
 
@@ -1412,14 +1572,17 @@ class _CreateEventDraft {
   final DateTime startsAt;
   final DateTime endsAt;
   final EventRepeatRule repeatRule;
+  final String categoryId;
   final Color color;
 }
 
 class _NotionQuickCreateEventSheet extends StatefulWidget {
   const _NotionQuickCreateEventSheet({
     required this.initialStart,
+    required this.categories,
     this.initialEnd,
     this.initialTitle = '',
+    this.initialCategoryId,
     this.initialColor = const Color(0xFF5AA9E6),
     this.showDelete = false,
     this.onDeleteRequested,
@@ -1427,8 +1590,10 @@ class _NotionQuickCreateEventSheet extends StatefulWidget {
   });
 
   final DateTime initialStart;
+  final List<EventCategoryItem> categories;
   final DateTime? initialEnd;
   final String initialTitle;
+  final String? initialCategoryId;
   final Color initialColor;
   final bool showDelete;
   final VoidCallback? onDeleteRequested;
@@ -1442,11 +1607,13 @@ class _NotionQuickCreateEventSheet extends StatefulWidget {
 class _NotionQuickCreateEventSheetState
     extends State<_NotionQuickCreateEventSheet> {
   static const _accentBlue = Color(0xFF0277BD);
+  static const _mutedText = Color(0xFFABABAB);
+  static const _divider = Color(0xFFB5B5B5);
   final TextEditingController _titleController = TextEditingController();
   late DateTime _start;
   late DateTime _end;
   EventRepeatRule _repeatRule = EventRepeatRule.none;
-  Color _selectedColor = const Color(0xFF5AA9E6);
+  String _selectedCategoryId = '';
 
   @override
   void initState() {
@@ -1454,7 +1621,7 @@ class _NotionQuickCreateEventSheetState
     _titleController.text = widget.initialTitle;
     _start = widget.initialStart;
     _end = widget.initialEnd ?? _start.add(const Duration(hours: 1));
-    _selectedColor = widget.initialColor;
+    _selectedCategoryId = _resolveInitialCategoryId();
   }
 
   @override
@@ -1466,13 +1633,14 @@ class _NotionQuickCreateEventSheetState
   @override
   Widget build(BuildContext context) {
     final insets = MediaQuery.of(context).viewInsets.bottom;
+    final selectedCategory = _selectedCategory;
     return Container(
       decoration: const BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(15)),
       ),
       child: Padding(
-        padding: EdgeInsets.fromLTRB(16, 10, 16, 12 + insets),
+        padding: EdgeInsets.fromLTRB(16, 10, 16, 16 + insets),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1493,13 +1661,32 @@ class _NotionQuickCreateEventSheetState
               autofocus: true,
               textInputAction: TextInputAction.done,
               onSubmitted: (_) => _submit(),
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 hintText:
                     '\u041d\u0430\u0437\u0432\u0430\u043d\u0438\u0435 \u0441\u043e\u0431\u044b\u0442\u0438\u044f',
-                border: InputBorder.none,
-                contentPadding: EdgeInsets.zero,
+                hintStyle: const TextStyle(
+                  color: _mutedText,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 16,
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: _divider),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: _accentBlue, width: 1.4),
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: _divider),
+                ),
               ),
-              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w600),
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 12),
             Wrap(
@@ -1526,45 +1713,11 @@ class _NotionQuickCreateEventSheetState
                   label: _repeatLabel(_repeatRule),
                   onTap: _pickRepeatRule,
                 ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                const Text(
-                  '\u0426\u0432\u0435\u0442',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: Color(0xFF6C7280),
-                    fontWeight: FontWeight.w700,
-                  ),
+                _QuickInfoChip(
+                  icon: Icons.category_outlined,
+                  label: selectedCategory?.title ?? '\u041a\u0430\u0442\u0435\u0433\u043e\u0440\u0438\u044f',
+                  onTap: _pickCategory,
                 ),
-                const SizedBox(width: 10),
-                ..._palette.map((color) {
-                  final selected =
-                      color.toARGB32() == _selectedColor.toARGB32();
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(999),
-                      onTap: () => setState(() => _selectedColor = color),
-                      child: Container(
-                        width: 22,
-                        height: 22,
-                        decoration: BoxDecoration(
-                          color: color,
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: selected
-                                ? const Color(0xFF1F2937)
-                                : const Color(0x26000000),
-                            width: selected ? 2 : 1,
-                          ),
-                        ),
-                      ),
-                    ),
-                  );
-                }),
               ],
             ),
             const SizedBox(height: 16),
@@ -1581,20 +1734,24 @@ class _NotionQuickCreateEventSheetState
                       '\u0423\u0434\u0430\u043b\u0438\u0442\u044c',
                     ),
                     style: TextButton.styleFrom(
-                      foregroundColor: const Color(0xFFB42318),
+                      foregroundColor: const Color(0xFF4A627D),
                     ),
                   ),
                 if (widget.showDelete) const SizedBox(width: 8),
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(),
+                  style: TextButton.styleFrom(foregroundColor: _accentBlue),
                   child: const Text('\u041e\u0442\u043c\u0435\u043d\u0430'),
                 ),
                 const Spacer(),
                 FilledButton(
                   onPressed: _submit,
                   style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFF1F2937),
+                    backgroundColor: _accentBlue,
                     foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                   child: Text(widget.submitLabel),
                 ),
@@ -1606,13 +1763,141 @@ class _NotionQuickCreateEventSheetState
     );
   }
 
-  static const _palette = [
-    Color(0xFF5AA9E6),
-    Color(0xFF31B387),
-    Color(0xFFF29B38),
-    Color(0xFFEF5350),
-    Color(0xFF8A77E8),
-  ];
+  String _resolveInitialCategoryId() {
+    if (widget.categories.isEmpty) {
+      return '';
+    }
+    final fromId = widget.initialCategoryId?.trim();
+    if (fromId != null &&
+        widget.categories.any((category) => category.id == fromId)) {
+      return fromId;
+    }
+
+    final initialColorHex = _colorToHex(widget.initialColor);
+    for (final category in widget.categories) {
+      if (category.color.toUpperCase() == initialColorHex) {
+        return category.id;
+      }
+    }
+    return widget.categories.first.id;
+  }
+
+  EventCategoryItem? get _selectedCategory {
+    for (final category in widget.categories) {
+      if (category.id == _selectedCategoryId) {
+        return category;
+      }
+    }
+    return widget.categories.isEmpty ? null : widget.categories.first;
+  }
+
+  Color get _selectedCategoryColor {
+    final category = _selectedCategory;
+    if (category == null) {
+      return widget.initialColor;
+    }
+    return _parseHexColor(category.color);
+  }
+
+  Future<void> _pickCategory() async {
+    if (widget.categories.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          backgroundColor: Color(0xFFF3F3F3),
+          content: Text(
+            '\u0421\u043d\u0430\u0447\u0430\u043b\u0430 \u0434\u043e\u0431\u0430\u0432\u044c\u0442\u0435 \u043a\u0430\u0442\u0435\u0433\u043e\u0440\u0438\u044e \u0441\u043e\u0431\u044b\u0442\u0438\u0439 \u0432 \u043d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0430\u0445.',
+            style: TextStyle(color: Color(0xFFABABAB)),
+          ),
+        ),
+      );
+      return;
+    }
+
+    final selected = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(15)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  '\u041a\u0430\u0442\u0435\u0433\u043e\u0440\u0438\u044f',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: _accentBlue,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Divider(height: 1, color: _divider),
+                const SizedBox(height: 6),
+                ...widget.categories.map((category) {
+                  final isSelected = category.id == _selectedCategoryId;
+                  return ListTile(
+                    dense: true,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 2),
+                    onTap: () => Navigator.of(context).pop(category.id),
+                    leading: Container(
+                      width: 10,
+                      height: 10,
+                      decoration: BoxDecoration(
+                        color: _parseHexColor(category.color),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    title: Text(
+                      category.title,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Color(0xFF000000),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    trailing: isSelected
+                        ? const Icon(Icons.check_rounded, color: _accentBlue)
+                        : null,
+                  );
+                }),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+    if (selected == null || !mounted) {
+      return;
+    }
+    setState(() {
+      _selectedCategoryId = selected;
+    });
+  }
+
+  Color _parseHexColor(String value) {
+    var normalized = value.trim();
+    if (normalized.startsWith('#')) {
+      normalized = normalized.substring(1);
+    }
+    if (normalized.length == 6) {
+      normalized = 'FF$normalized';
+    }
+    final parsed = int.tryParse(normalized, radix: 16);
+    if (parsed == null) {
+      return const Color(0xFF5AA9E6);
+    }
+    return Color(parsed);
+  }
+
+  String _colorToHex(Color color) {
+    final value = color.toARGB32();
+    final rgb = value & 0x00FFFFFF;
+    return '#${rgb.toRadixString(16).padLeft(6, '0').toUpperCase()}';
+  }
 
   ThemeData _pickerTheme(BuildContext context) {
     final baseTheme = Theme.of(context);
@@ -1744,6 +2029,9 @@ class _NotionQuickCreateEventSheetState
     final selected = await showModalBottomSheet<EventRepeatRule>(
       context: context,
       backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(15)),
+      ),
       builder: (context) {
         const options = [
           EventRepeatRule.none,
@@ -1788,8 +2076,10 @@ class _NotionQuickCreateEventSheetState
     if (title.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
+          backgroundColor: Color(0xFFF3F3F3),
           content: Text(
             '\u0412\u0432\u0435\u0434\u0438\u0442\u0435 \u043d\u0430\u0437\u0432\u0430\u043d\u0438\u0435 \u0441\u043e\u0431\u044b\u0442\u0438\u044f.',
+            style: TextStyle(color: _mutedText),
           ),
         ),
       );
@@ -1799,8 +2089,23 @@ class _NotionQuickCreateEventSheetState
     if (!_end.isAfter(_start)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
+          backgroundColor: Color(0xFFF3F3F3),
           content: Text(
             '\u0412\u0440\u0435\u043c\u044f \u043e\u043a\u043e\u043d\u0447\u0430\u043d\u0438\u044f \u0434\u043e\u043b\u0436\u043d\u043e \u0431\u044b\u0442\u044c \u043f\u043e\u0437\u0436\u0435 \u043d\u0430\u0447\u0430\u043b\u0430.',
+            style: TextStyle(color: _mutedText),
+          ),
+        ),
+      );
+      return;
+    }
+
+    if (_selectedCategoryId.isEmpty && widget.categories.isNotEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          backgroundColor: Color(0xFFF3F3F3),
+          content: Text(
+            '\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u043a\u0430\u0442\u0435\u0433\u043e\u0440\u0438\u044e \u0441\u043e\u0431\u044b\u0442\u0438\u044f.',
+            style: TextStyle(color: _mutedText),
           ),
         ),
       );
@@ -1813,7 +2118,8 @@ class _NotionQuickCreateEventSheetState
         startsAt: _start,
         endsAt: _end,
         repeatRule: _repeatRule,
-        color: _selectedColor,
+        categoryId: _selectedCategoryId,
+        color: _selectedCategoryColor,
       ),
     );
   }
@@ -1887,9 +2193,9 @@ class _QuickInfoChip extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
         decoration: BoxDecoration(
-          color: const Color(0xFFF4F5F7),
+          color: Colors.white,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: const Color(0x16000000)),
+          border: Border.all(color: const Color(0xFFB5B5B5)),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -1917,6 +2223,8 @@ class CalendarEventCard {
     required this.title,
     required this.startsAt,
     required this.endsAt,
+    required this.categoryId,
+    required this.categoryName,
     required this.color,
     required this.stripe,
   });
@@ -1925,6 +2233,8 @@ class CalendarEventCard {
   final String title;
   final DateTime startsAt;
   final DateTime endsAt;
+  final String categoryId;
+  final String categoryName;
   final Color color;
   final Color stripe;
 
@@ -1946,4 +2256,14 @@ class CalendarEventCard {
     final mm = m.toString().padLeft(2, '0');
     return '$hh:$mm';
   }
+}
+
+int _isoWeekNumber(DateTime date) {
+  final current = DateTime(date.year, date.month, date.day);
+  final thursday = current.add(Duration(days: 4 - current.weekday));
+  final firstThursday = DateTime(thursday.year, 1, 4);
+  final firstWeekStart = firstThursday.subtract(
+    Duration(days: firstThursday.weekday - 1),
+  );
+  return ((thursday.difference(firstWeekStart).inDays) ~/ 7) + 1;
 }
