@@ -57,6 +57,7 @@ abstract class CalendarRepository {
     required DateTime startsAt,
     required DateTime endsAt,
     EventRepeatRule repeatRule,
+    String? categoryId,
     int categoryColorValue,
   });
 
@@ -66,6 +67,7 @@ abstract class CalendarRepository {
     required DateTime startsAt,
     required DateTime endsAt,
     EventRepeatRule repeatRule,
+    String? categoryId,
     int categoryColorValue,
   });
 
@@ -131,9 +133,12 @@ class ApiCalendarRepository implements CalendarRepository {
     required DateTime startsAt,
     required DateTime endsAt,
     EventRepeatRule repeatRule = EventRepeatRule.none,
+    String? categoryId,
     int categoryColorValue = 0xFF5AA9E6,
   }) async {
-    final categoryId = await _resolveCategoryIdByColor(categoryColorValue);
+    final resolvedCategoryId = categoryId?.trim().isNotEmpty == true
+        ? categoryId!.trim()
+        : await _resolveCategoryIdByColor(categoryColorValue);
     final response = await _apiClient.dio.post(
       '/me/events',
       data: {
@@ -141,7 +146,7 @@ class ApiCalendarRepository implements CalendarRepository {
         'startsAt': startsAt.toUtc().toIso8601String(),
         'endsAt': endsAt.toUtc().toIso8601String(),
         ..._schedulePayload(repeatRule),
-        'categoryId': categoryId,
+        'categoryId': resolvedCategoryId,
         'taskId': null,
       },
     );
@@ -160,9 +165,12 @@ class ApiCalendarRepository implements CalendarRepository {
     required DateTime startsAt,
     required DateTime endsAt,
     EventRepeatRule repeatRule = EventRepeatRule.none,
+    String? categoryId,
     int categoryColorValue = 0xFF5AA9E6,
   }) async {
-    final categoryId = await _resolveCategoryIdByColor(categoryColorValue);
+    final resolvedCategoryId = categoryId?.trim().isNotEmpty == true
+        ? categoryId!.trim()
+        : await _resolveCategoryIdByColor(categoryColorValue);
     await _apiClient.dio.patch(
       '/me/events/$eventId',
       data: {
@@ -170,7 +178,7 @@ class ApiCalendarRepository implements CalendarRepository {
         'startsAt': startsAt.toUtc().toIso8601String(),
         'endsAt': endsAt.toUtc().toIso8601String(),
         ..._schedulePayload(repeatRule),
-        'categoryId': categoryId,
+        'categoryId': resolvedCategoryId,
       },
     );
   }
