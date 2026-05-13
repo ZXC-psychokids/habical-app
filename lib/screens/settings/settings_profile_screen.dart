@@ -465,6 +465,17 @@ class _SettingsProfileScreenState extends State<SettingsProfileScreen> {
                   ),
                 ),
               ),
+            const SizedBox(height: 18),
+            const Center(
+              child: Text(
+                'habical v0.7.5',
+                style: TextStyle(
+                  color: Color(0xFFB5B5B5),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
           ],
         ),
       ),

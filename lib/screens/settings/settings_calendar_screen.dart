@@ -19,8 +19,8 @@ class _SettingsCalendarScreenState extends State<SettingsCalendarScreen> {
   static const _prefsShowWeekDaysKey = 'settings.calendar.showWeekDays';
 
   static const List<_WeekStartOption> _weekStartOptions = [
-    _WeekStartOption(value: 1, label: 'РџРѕРЅРµРґРµР»СЊРЅРёРє'),
-    _WeekStartOption(value: 7, label: 'Р’РѕСЃРєСЂРµСЃРµРЅСЊРµ'),
+    _WeekStartOption(value: 1, label: '\u041f\u043e\u043d\u0435\u0434\u0435\u043b\u044c\u043d\u0438\u043a'),
+    _WeekStartOption(value: 7, label: '\u0412\u043e\u0441\u043a\u0440\u0435\u0441\u0435\u043d\u044c\u0435'),
   ];
 
   static const List<_TimezoneOption> _timezoneOptions = [
@@ -114,7 +114,7 @@ class _SettingsCalendarScreenState extends State<SettingsCalendarScreen> {
         return;
       }
       setState(() {
-        _error = 'РќРµ СѓРґР°Р»РѕСЃСЊ Р·Р°РіСЂСѓР·РёС‚СЊ РЅР°СЃС‚СЂРѕР№РєРё РєР°Р»РµРЅРґР°СЂСЏ.';
+        _error = '\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044c \u043d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438 \u043a\u0430\u043b\u0435\u043d\u0434\u0430\u0440\u044f.';
         _isLoading = false;
       });
     }
@@ -146,15 +146,15 @@ class _SettingsCalendarScreenState extends State<SettingsCalendarScreen> {
       }
       setState(() {
         _error = e.response?.statusCode == 400
-            ? 'РќРµРєРѕСЂСЂРµРєС‚РЅРѕРµ Р·РЅР°С‡РµРЅРёРµ РґР»СЏ РЅР°СЃС‚СЂРѕРµРє РєР°Р»РµРЅРґР°СЂСЏ.'
-            : 'РќРµ СѓРґР°Р»РѕСЃСЊ СЃРѕС…СЂР°РЅРёС‚СЊ РЅР°СЃС‚СЂРѕР№РєРё РєР°Р»РµРЅРґР°СЂСЏ.';
+            ? '\u041d\u0435\u043a\u043e\u0440\u0440\u0435\u043a\u0442\u043d\u043e\u0435 \u0437\u043d\u0430\u0447\u0435\u043d\u0438\u0435 \u0434\u043b\u044f \u043d\u0430\u0441\u0442\u0440\u043e\u0435\u043a \u043a\u0430\u043b\u0435\u043d\u0434\u0430\u0440\u044f.'
+            : '\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u0441\u043e\u0445\u0440\u0430\u043d\u0438\u0442\u044c \u043d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438 \u043a\u0430\u043b\u0435\u043d\u0434\u0430\u0440\u044f.';
       });
     } catch (_) {
       if (!mounted) {
         return;
       }
       setState(() {
-        _error = 'РќРµ СѓРґР°Р»РѕСЃСЊ СЃРѕС…СЂР°РЅРёС‚СЊ РЅР°СЃС‚СЂРѕР№РєРё РєР°Р»РµРЅРґР°СЂСЏ.';
+        _error = '\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u0441\u043e\u0445\u0440\u0430\u043d\u0438\u0442\u044c \u043d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438 \u043a\u0430\u043b\u0435\u043d\u0434\u0430\u0440\u044f.';
       });
     } finally {
       if (mounted) {
@@ -170,7 +170,7 @@ class _SettingsCalendarScreenState extends State<SettingsCalendarScreen> {
       return;
     }
     final selected = await _showSelectionDialog<int>(
-      title: 'Р”РµРЅСЊ РЅР°С‡Р°Р»Р° РЅРµРґРµР»Рё',
+      title: '\u0414\u0435\u043d\u044c \u043d\u0430\u0447\u0430\u043b\u0430 \u043d\u0435\u0434\u0435\u043b\u0438',
       items: _weekStartOptions
           .map((option) => _SelectionItem<int>(value: option.value, label: option.label))
           .toList(growable: false),
@@ -188,7 +188,7 @@ class _SettingsCalendarScreenState extends State<SettingsCalendarScreen> {
       return;
     }
     final selected = await _showSelectionDialog<String>(
-      title: 'Р§Р°СЃРѕРІРѕР№ РїРѕСЏСЃ',
+      title: '\u0427\u0430\u0441\u043e\u0432\u043e\u0439 \u043f\u043e\u044f\u0441',
       items: _timezoneOptions
           .map((option) => _SelectionItem<String>(value: option.iana, label: option.label))
           .toList(growable: false),
@@ -238,15 +238,15 @@ class _SettingsCalendarScreenState extends State<SettingsCalendarScreen> {
       }
       final status = e.response?.statusCode;
       if (status == 400) {
-        _showSnack('РџСЂРѕРІРµСЂСЊС‚Рµ РЅР°Р·РІР°РЅРёРµ РёР»Рё С†РІРµС‚ РєР°С‚РµРіРѕСЂРёРё.');
+        _showSnack('\u041f\u0440\u043e\u0432\u0435\u0440\u044c\u0442\u0435 \u043d\u0430\u0437\u0432\u0430\u043d\u0438\u0435 \u0438\u043b\u0438 \u0446\u0432\u0435\u0442 \u043a\u0430\u0442\u0435\u0433\u043e\u0440\u0438\u0438.');
       } else {
-        _showSnack('РќРµ СѓРґР°Р»РѕСЃСЊ РґРѕР±Р°РІРёС‚СЊ РєР°С‚РµРіРѕСЂРёСЋ.');
+        _showSnack('\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u0434\u043e\u0431\u0430\u0432\u0438\u0442\u044c \u043a\u0430\u0442\u0435\u0433\u043e\u0440\u0438\u044e.');
       }
     } catch (_) {
       if (!mounted) {
         return;
       }
-      _showSnack('РќРµ СѓРґР°Р»РѕСЃСЊ РґРѕР±Р°РІРёС‚СЊ РєР°С‚РµРіРѕСЂРёСЋ.');
+      _showSnack('\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u0434\u043e\u0431\u0430\u0432\u0438\u0442\u044c \u043a\u0430\u0442\u0435\u0433\u043e\u0440\u0438\u044e.');
     } finally {
       if (mounted) {
         setState(() => _isSaving = false);
@@ -287,17 +287,17 @@ class _SettingsCalendarScreenState extends State<SettingsCalendarScreen> {
       }
       final status = e.response?.statusCode;
       if (status == 409) {
-        _showSnack('РљР°С‚РµРіРѕСЂРёСЏ РёСЃРїРѕР»СЊР·СѓРµС‚СЃСЏ РІ СЃРѕР±С‹С‚РёСЏС… Рё РЅРµ РјРѕР¶РµС‚ Р±С‹С‚СЊ СѓРґР°Р»РµРЅР°.');
+        _showSnack('\u041a\u0430\u0442\u0435\u0433\u043e\u0440\u0438\u044f \u0438\u0441\u043f\u043e\u043b\u044c\u0437\u0443\u0435\u0442\u0441\u044f \u0432 \u0441\u043e\u0431\u044b\u0442\u0438\u044f\u0445 \u0438 \u043d\u0435 \u043c\u043e\u0436\u0435\u0442 \u0431\u044b\u0442\u044c \u0443\u0434\u0430\u043b\u0435\u043d\u0430.');
       } else if (status == 400) {
-        _showSnack('РџСЂРѕРІРµСЂСЊС‚Рµ РЅР°Р·РІР°РЅРёРµ РёР»Рё С†РІРµС‚ РєР°С‚РµРіРѕСЂРёРё.');
+        _showSnack('\u041f\u0440\u043e\u0432\u0435\u0440\u044c\u0442\u0435 \u043d\u0430\u0437\u0432\u0430\u043d\u0438\u0435 \u0438\u043b\u0438 \u0446\u0432\u0435\u0442 \u043a\u0430\u0442\u0435\u0433\u043e\u0440\u0438\u0438.');
       } else {
-        _showSnack('РќРµ СѓРґР°Р»РѕСЃСЊ РѕР±РЅРѕРІРёС‚СЊ РєР°С‚РµРіРѕСЂРёСЋ.');
+        _showSnack('\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u043e\u0431\u043d\u043e\u0432\u0438\u0442\u044c \u043a\u0430\u0442\u0435\u0433\u043e\u0440\u0438\u044e.');
       }
     } catch (_) {
       if (!mounted) {
         return;
       }
-      _showSnack('РќРµ СѓРґР°Р»РѕСЃСЊ РѕР±РЅРѕРІРёС‚СЊ РєР°С‚РµРіРѕСЂРёСЋ.');
+      _showSnack('\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u043e\u0431\u043d\u043e\u0432\u0438\u0442\u044c \u043a\u0430\u0442\u0435\u0433\u043e\u0440\u0438\u044e.');
     } finally {
       if (mounted) {
         setState(() => _isSaving = false);
@@ -321,32 +321,40 @@ class _SettingsCalendarScreenState extends State<SettingsCalendarScreen> {
                   icon: const Icon(
                     Icons.arrow_back,
                     size: 22,
-                    color: SettingsUiTokens.primaryText,
+                    color: SettingsUiTokens.accentBlue,
                   ),
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints.tightFor(width: 24, height: 24),
                   splashRadius: 18,
-                  tooltip: 'РќР°Р·Р°Рґ',
+                  tooltip: '\u041d\u0430\u0437\u0430\u0434',
                 ),
                 const SizedBox(width: 8),
-                const Text('РљР°Р»РµРЅРґР°СЂСЊ', style: SettingsUiTokens.screenTitle),
+                const Text(
+                  '\u041a\u0430\u043b\u0435\u043d\u0434\u0430\u0440\u044c',
+                  style: TextStyle(
+                    fontSize: 32,
+                    height: 1.08,
+                    fontWeight: FontWeight.w700,
+                    color: SettingsUiTokens.accentBlue,
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 26),
-            const _SectionTitle('РћСЃРЅРѕРІРЅС‹Рµ РЅР°СЃС‚СЂРѕР№РєРё'),
+            const _SectionTitle('\u041e\u0441\u043d\u043e\u0432\u043d\u044b\u0435 \u043d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438'),
             const SizedBox(height: 12),
             _Card(
               child: Column(
                 children: [
                   _ClickableRow(
-                    title: 'Р”РµРЅСЊ РЅР°С‡Р°Р»Р° РЅРµРґРµР»Рё:',
+                    title: '\u0414\u0435\u043d\u044c \u043d\u0430\u0447\u0430\u043b\u0430 \u043d\u0435\u0434\u0435\u043b\u0438:',
                     trailingText: _weekStartLabel(_weekStartsOn),
                     enabled: !controlsDisabled,
                     onTap: _pickWeekStart,
                   ),
                   const _InnerDivider(),
                   _ClickableRow(
-                    title: 'Р§Р°СЃРѕРІРѕР№ РїРѕСЏСЃ:',
+                    title: '\u0427\u0430\u0441\u043e\u0432\u043e\u0439 \u043f\u043e\u044f\u0441:',
                     trailingText: _timezoneLabel(_timezoneIana),
                     enabled: !controlsDisabled,
                     onTap: _pickTimezone,
@@ -359,7 +367,7 @@ class _SettingsCalendarScreenState extends State<SettingsCalendarScreen> {
               child: Column(
                 children: [
                   _SwitchRow(
-                    title: 'РџРѕРєР°Р·С‹РІР°С‚СЊ РЅРѕРјРµСЂ РЅРµРґРµР»Рё',
+                    title: '\u041f\u043e\u043a\u0430\u0437\u044b\u0432\u0430\u0442\u044c \u043d\u043e\u043c\u0435\u0440 \u043d\u0435\u0434\u0435\u043b\u0438',
                     muted: false,
                     value: _showWeekNumbers,
                     enabled: !controlsDisabled,
@@ -367,7 +375,7 @@ class _SettingsCalendarScreenState extends State<SettingsCalendarScreen> {
                   ),
                   const SizedBox(height: 12),
                   _SwitchRow(
-                    title: 'РџРѕРєР°Р·С‹РІР°С‚СЊ РґРЅРё РЅРµРґРµР»Рё',
+                    title: '\u041f\u043e\u043a\u0430\u0437\u044b\u0432\u0430\u0442\u044c \u0434\u043d\u0438 \u043d\u0435\u0434\u0435\u043b\u0438',
                     muted: !_showWeekDays,
                     value: _showWeekDays,
                     enabled: !controlsDisabled,
@@ -377,7 +385,7 @@ class _SettingsCalendarScreenState extends State<SettingsCalendarScreen> {
               ),
             ),
             const SizedBox(height: 22),
-            const _SectionTitle('РљР°С‚РµРіРѕСЂРёРё СЃРѕР±С‹С‚РёР№'),
+            const _SectionTitle('\u041a\u0430\u0442\u0435\u0433\u043e\u0440\u0438\u0438 \u0441\u043e\u0431\u044b\u0442\u0438\u0439'),
             const SizedBox(height: 12),
             _Card(
               child: _isLoading
@@ -393,7 +401,7 @@ class _SettingsCalendarScreenState extends State<SettingsCalendarScreen> {
                   ? const Padding(
                       padding: EdgeInsets.symmetric(vertical: 8),
                       child: Text(
-                        'РљР°С‚РµРіРѕСЂРёРё РїРѕРєР° РЅРµ РґРѕР±Р°РІР»РµРЅС‹',
+                        '\u041a\u0430\u0442\u0435\u0433\u043e\u0440\u0438\u0438 \u043f\u043e\u043a\u0430 \u043d\u0435 \u0434\u043e\u0431\u0430\u0432\u043b\u0435\u043d\u044b',
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w500,
@@ -431,7 +439,7 @@ class _SettingsCalendarScreenState extends State<SettingsCalendarScreen> {
                   ),
                 ),
                 child: const Text(
-                  'Р”РѕР±Р°РІРёС‚СЊ РєР°С‚РµРіРѕСЂРёСЋ',
+                  '\u0414\u043e\u0431\u0430\u0432\u0438\u0442\u044c \u043a\u0430\u0442\u0435\u0433\u043e\u0440\u0438\u044e',
                   style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
                 ),
               ),
@@ -456,6 +464,17 @@ class _SettingsCalendarScreenState extends State<SettingsCalendarScreen> {
                   ),
                 ),
               ),
+            const SizedBox(height: 18),
+            const Center(
+              child: Text(
+                'habical v0.7.5',
+                style: TextStyle(
+                  color: Color(0xFFB5B5B5),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -558,7 +577,9 @@ class _SettingsCalendarScreenState extends State<SettingsCalendarScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      initial == null ? 'РќРѕРІР°СЏ РєР°С‚РµРіРѕСЂРёСЏ' : 'Р РµРґР°РєС‚РёСЂРѕРІР°РЅРёРµ',
+                      initial == null
+                          ? '\u041d\u043e\u0432\u0430\u044f \u043a\u0430\u0442\u0435\u0433\u043e\u0440\u0438\u044f'
+                          : '\u0420\u0435\u0434\u0430\u043a\u0442\u0438\u0440\u043e\u0432\u0430\u043d\u0438\u0435',
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
@@ -678,12 +699,12 @@ class _SettingsCalendarScreenState extends State<SettingsCalendarScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               const Text(
-                'РЈРґР°Р»РёС‚СЊ РєР°С‚РµРіРѕСЂРёСЋ?',
+                '\u0423\u0434\u0430\u043b\u0438\u0442\u044c \u043a\u0430\u0442\u0435\u0433\u043e\u0440\u0438\u044e?',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 10),
               const Text(
-                'РљР°С‚РµРіРѕСЂРёСЏ Р±СѓРґРµС‚ СѓРґР°Р»РµРЅР°, РµСЃР»Рё РЅРµ РёСЃРїРѕР»СЊР·СѓРµС‚СЃСЏ РІ СЃРѕР±С‹С‚РёСЏС….',
+                '\u041a\u0430\u0442\u0435\u0433\u043e\u0440\u0438\u044f \u0431\u0443\u0434\u0435\u0442 \u0443\u0434\u0430\u043b\u0435\u043d\u0430, \u0435\u0441\u043b\u0438 \u043d\u0435 \u0438\u0441\u043f\u043e\u043b\u044c\u0437\u0443\u0435\u0442\u0441\u044f \u0432 \u0441\u043e\u0431\u044b\u0442\u0438\u044f\u0445.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 13,
@@ -736,7 +757,7 @@ class _SettingsCalendarScreenState extends State<SettingsCalendarScreen> {
         return option.label;
       }
     }
-    return 'РџРѕРЅРµРґРµР»СЊРЅРёРє';
+    return '\u041f\u043e\u043d\u0435\u0434\u0435\u043b\u044c\u043d\u0438\u043a';
   }
 
   String _timezoneLabel(String iana) {
