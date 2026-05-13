@@ -35,6 +35,7 @@ class ApiFriendsRepository implements FriendsRepository {
             name: handle,
             status: FriendRelationStatus.connected,
             streakDays: 0,
+            sharedHabitsCount: _asInt(map['sharedHabitsCount']) ?? 0,
             sharedHabitTitle: null,
           );
         })

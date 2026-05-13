@@ -7,11 +7,13 @@ class FriendListItem {
     required this.name,
     required this.status,
     required this.streakDays,
+    this.sharedHabitsCount = 0,
     this.sharedHabitTitle,
   }) : assert(id != ''),
        assert(userId != ''),
        assert(name != ''),
        assert(streakDays >= 0),
+       assert(sharedHabitsCount >= 0),
        assert(sharedHabitTitle == null || sharedHabitTitle != '');
 
   final String id;
@@ -19,10 +21,11 @@ class FriendListItem {
   final String name;
   final FriendRelationStatus status;
   final int streakDays;
+  final int sharedHabitsCount;
   final String? sharedHabitTitle;
 
   bool get isConnected => status == FriendRelationStatus.connected;
-  bool get hasSharedHabit => sharedHabitTitle != null;
+  bool get hasSharedHabit => sharedHabitsCount > 0 || sharedHabitTitle != null;
 
   FriendListItem copyWith({
     String? id,
@@ -30,6 +33,7 @@ class FriendListItem {
     String? name,
     FriendRelationStatus? status,
     int? streakDays,
+    int? sharedHabitsCount,
     String? sharedHabitTitle,
     bool clearSharedHabit = false,
   }) {
@@ -39,6 +43,7 @@ class FriendListItem {
       name: name ?? this.name,
       status: status ?? this.status,
       streakDays: streakDays ?? this.streakDays,
+      sharedHabitsCount: sharedHabitsCount ?? this.sharedHabitsCount,
       sharedHabitTitle: clearSharedHabit
           ? null
           : (sharedHabitTitle ?? this.sharedHabitTitle),
