@@ -41,6 +41,10 @@ class CreateHabitCubit extends Cubit<CreateHabitState> {
         submission: CreateHabitSubmission(
           title: title,
           startDate: state.startDate,
+          color: '#5AA9E6',
+          scheduleType: 'daily',
+          intervalDays: 1,
+          weekdays: const <int>[],
         ),
       ),
     );

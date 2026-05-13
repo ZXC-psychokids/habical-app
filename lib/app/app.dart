@@ -10,8 +10,6 @@ import '../repositories/calendar_repository.dart';
 import '../repositories/friends_repository.dart';
 import '../repositories/habits_repository.dart';
 import '../repositories/home_repository.dart';
-import '../repositories/hybrid_habits_repository.dart';
-import '../repositories/in_memory_app_store.dart';
 import '../repositories/settings_repository.dart';
 import '../screens/auth/auth_gate_screen.dart';
 import '../services/session_service.dart';
@@ -31,14 +29,6 @@ class HabicalApp extends StatefulWidget {
 }
 
 class _HabicalAppState extends State<HabicalApp> {
-  late final InMemoryAppStore _store;
-
-  @override
-  void initState() {
-    super.initState();
-    _store = InMemoryAppStore();
-  }
-
   @override
   Widget build(BuildContext context) {
     return MultiRepositoryProvider(
@@ -57,10 +47,7 @@ class _HabicalAppState extends State<HabicalApp> {
           create: (_) => ApiCalendarRepository(apiClient: widget.apiClient),
         ),
         RepositoryProvider<HabitsRepository>(
-          create: (_) => HybridHabitsRepository(
-            remoteRepository: ApiHabitsRepository(apiClient: widget.apiClient),
-            store: _store,
-          ),
+          create: (_) => ApiHabitsRepository(apiClient: widget.apiClient),
         ),
         RepositoryProvider<FriendsRepository>(
           create: (_) => ApiFriendsRepository(apiClient: widget.apiClient),
