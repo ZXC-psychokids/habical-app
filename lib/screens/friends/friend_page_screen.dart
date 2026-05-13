@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../models/friend_page_data.dart';
 import '../../repositories/friends_repository.dart';
+import '../../repositories/habits_repository.dart';
+import '../habits/shared_habit_details_screen.dart';
 
 class FriendPageScreen extends StatefulWidget {
   const FriendPageScreen({
@@ -19,6 +22,7 @@ class FriendPageScreen extends StatefulWidget {
 
 class _FriendPageScreenState extends State<FriendPageScreen> {
   bool _isLoading = true;
+  bool _isCreatingSharedHabit = false;
   String? _error;
   FriendPageData? _data;
 
@@ -54,6 +58,72 @@ class _FriendPageScreenState extends State<FriendPageScreen> {
         _isLoading = false;
         _error = 'Failed to load friend page.';
       });
+    }
+  }
+
+  Future<void> _createSharedHabit() async {
+    final titleController = TextEditingController();
+    final title = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Новая совместная привычка'),
+        content: TextField(
+          controller: titleController,
+          autofocus: true,
+          decoration: const InputDecoration(
+            hintText: 'Название привычки',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Отмена'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(titleController.text.trim()),
+            child: const Text('Создать'),
+          ),
+        ],
+      ),
+    );
+
+    if (title == null || title.isEmpty || !mounted) {
+      return;
+    }
+
+    setState(() {
+      _isCreatingSharedHabit = true;
+    });
+    try {
+      final habitsRepository = context.read<HabitsRepository>();
+      await habitsRepository.createSharedHabit(
+        friendUserId: widget.friendUserId,
+        title: title,
+        color: '#0A84FF',
+        scheduleType: 'daily',
+        intervalDays: 1,
+        weekdays: const <int>[],
+      );
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Совместная привычка создана')),
+      );
+      await _load();
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Не удалось создать совместную привычку')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isCreatingSharedHabit = false;
+        });
+      }
     }
   }
 
@@ -109,10 +179,35 @@ class _FriendPageScreenState extends State<FriendPageScreen> {
                 ),
               ),
               const SizedBox(height: 12),
-              _SectionHeader(title: 'Shared Habits'),
+              Row(
+                children: [
+                  const Expanded(child: _SectionHeader(title: 'Shared Habits')),
+                  TextButton(
+                    onPressed: _isCreatingSharedHabit ? null : _createSharedHabit,
+                    child: _isCreatingSharedHabit
+                        ? const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Text('Создать'),
+                  ),
+                ],
+              ),
               ...data.sharedHabits.map(
                 (habit) => ListTile(
                   contentPadding: EdgeInsets.zero,
+                  onTap: () {
+                    final habitsRepository = context.read<HabitsRepository>();
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => SharedHabitDetailsScreen(
+                          sharedHabitPairId: habit.sharedHabitPairId,
+                          repository: habitsRepository,
+                        ),
+                      ),
+                    );
+                  },
                   title: Text(habit.title),
                   subtitle: Text('Streak: ${habit.streakDays}'),
                   trailing: Text(
