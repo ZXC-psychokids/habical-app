@@ -91,7 +91,7 @@ class _FriendsViewState extends State<_FriendsView> {
                       style: TextStyle(
                         fontSize: 48 / 1.56,
                         fontWeight: FontWeight.w700,
-                        color: Color(0xFF000000),
+                        color: Color(0xFF0277BC),
                       ),
                     ),
                   ),
@@ -203,7 +203,7 @@ class _FriendsViewState extends State<_FriendsView> {
                       child: const Text(
                         '\u0414\u043e\u0431\u0430\u0432\u0438\u0442\u044c \u0434\u0440\u0443\u0433\u0430',
                         style: TextStyle(
-                          fontSize: 18 / 1.56,
+                          fontSize: 13.5,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
@@ -309,6 +309,20 @@ class _FriendsViewState extends State<_FriendsView> {
                     const Spacer(),
                     TextButton(
                       onPressed: () => Navigator.of(dialogContext).pop(),
+                      style: ButtonStyle(
+                        foregroundColor: const WidgetStatePropertyAll(
+                          Color(0xFF0277BC),
+                        ),
+                        overlayColor: WidgetStateProperty.resolveWith((states) {
+                          if (states.contains(WidgetState.pressed)) {
+                            return const Color(0x220277BC);
+                          }
+                          if (states.contains(WidgetState.hovered)) {
+                            return const Color(0x140277BC);
+                          }
+                          return Colors.transparent;
+                        }),
+                      ),
                       child: const Text(
                         '\u041e\u0442\u043c\u0435\u043d\u0430',
                         style: TextStyle(color: Color(0xFF0277BC)),

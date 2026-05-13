@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../core/app_logger.dart';
 import '../../repositories/calendar_repository.dart';
 
 enum CalendarScale { schedule, day, threeDays, week, month }
@@ -351,7 +352,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
       setState(() {
         _categories = categories;
       });
-    } catch (_) {
+    } catch (error, stackTrace) {
+      AppLogger.e('CalendarScreen._loadCategories failed', error, stackTrace);
       // Keep existing categories on transient failures.
     }
   }
@@ -379,7 +381,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
         _rangeEvents = result;
         _isLoadingEvents = false;
       });
-    } catch (_) {
+    } catch (error, stackTrace) {
+      AppLogger.e(
+        'CalendarScreen._loadEventsForVisibleRange failed',
+        error,
+        stackTrace,
+      );
       if (!mounted) {
         return;
       }
@@ -516,7 +523,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
           duration: Duration(milliseconds: 1300),
         ),
       );
-    } catch (_) {
+    } catch (error, stackTrace) {
+      AppLogger.e('CalendarScreen.createEvent failed', error, stackTrace);
       if (!mounted) {
         return;
       }
@@ -590,7 +598,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
             duration: Duration(milliseconds: 1300),
           ),
         );
-      } catch (_) {
+      } catch (error, stackTrace) {
+        AppLogger.e('CalendarScreen.deleteEvent failed', error, stackTrace);
         if (!mounted) {
           return;
         }
@@ -634,7 +643,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
           duration: Duration(milliseconds: 1300),
         ),
       );
-    } catch (_) {
+    } catch (error, stackTrace) {
+      AppLogger.e('CalendarScreen.updateEvent failed', error, stackTrace);
       if (!mounted) {
         return;
       }
@@ -686,6 +696,7 @@ class _NotionHeader extends StatelessWidget {
                   fontSize: 26,
                   fontWeight: FontWeight.w600,
                   letterSpacing: -0.3,
+                  color: Color(0xFF0277BC),
                 ),
               ),
               const SizedBox(width: 8),
@@ -730,16 +741,6 @@ class _NotionHeader extends StatelessWidget {
                   color: Color(0xFF6C7280),
                   fontSize: 13,
                   fontWeight: FontWeight.w500,
-                ),
-              ),
-              const Spacer(),
-              const Text(
-                '\u041c\u0421\u041a',
-                style: TextStyle(
-                  color: Color(0xFF9AA1AD),
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.5,
                 ),
               ),
             ],

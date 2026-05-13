@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
+import 'app_logger.dart';
 import '../services/session_service.dart';
 
 class ApiClient {
@@ -29,7 +30,38 @@ class ApiClient {
           } else {
             options.headers.remove('Authorization');
           }
+
+          AppLogger.i(
+            'HTTP REQUEST ${options.method.toUpperCase()} ${options.uri}',
+          );
+          AppLogger.i(
+            'query=${AppLogger.pretty(options.queryParameters)}',
+          );
+          AppLogger.i(
+            'body=${AppLogger.pretty(options.data)}',
+          );
           handler.next(options);
+        },
+        onResponse: (response, handler) {
+          final request = response.requestOptions;
+          AppLogger.i(
+            'HTTP RESPONSE ${request.method.toUpperCase()} ${request.uri}',
+          );
+          AppLogger.i('status=${response.statusCode}');
+          AppLogger.i('body=${AppLogger.pretty(response.data)}');
+          handler.next(response);
+        },
+        onError: (error, handler) {
+          final request = error.requestOptions;
+          AppLogger.e(
+            'HTTP ERROR ${request.method.toUpperCase()} ${request.uri}\n'
+            'type=${error.type}\n'
+            'status=${error.response?.statusCode}\n'
+            'response=${AppLogger.pretty(error.response?.data)}',
+            error,
+            error.stackTrace,
+          );
+          handler.next(error);
         },
       ),
     );

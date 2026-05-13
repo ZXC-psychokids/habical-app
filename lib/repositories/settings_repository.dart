@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:dio/dio.dart';
 
 import '../core/api_client.dart';
+import '../core/app_logger.dart';
 
 class ProfileData {
   const ProfileData({
@@ -66,6 +67,11 @@ class SettingsRepository {
     final profileRaw = results[0].data;
     final settingsRaw = results[1].data;
     if (profileRaw is! Map || settingsRaw is! Map) {
+      AppLogger.e(
+        'SettingsRepository.fetchProfileAndSettings failed: invalid payload',
+        StateError('Invalid profile/settings payload.'),
+        StackTrace.current,
+      );
       throw StateError('Invalid profile/settings payload.');
     }
 
@@ -93,6 +99,11 @@ class SettingsRepository {
     final response = await _apiClient.dio.patch('/me/profile', data: payload);
     final raw = response.data;
     if (raw is! Map) {
+      AppLogger.e(
+        'SettingsRepository.updateProfile failed: invalid profile payload',
+        StateError('Invalid profile payload.'),
+        StackTrace.current,
+      );
       throw StateError('Invalid profile payload.');
     }
     return _parseProfile(Map<String, dynamic>.from(raw));
@@ -179,6 +190,11 @@ class SettingsRepository {
     final response = await _apiClient.dio.patch('/me/avatar', data: formData);
     final raw = response.data;
     if (raw is! Map) {
+      AppLogger.e(
+        'SettingsRepository.updateAvatar failed: invalid profile payload',
+        StateError('Invalid profile payload.'),
+        StackTrace.current,
+      );
       throw StateError('Invalid profile payload.');
     }
     return _parseProfile(Map<String, dynamic>.from(raw));
@@ -188,6 +204,11 @@ class SettingsRepository {
     final response = await _apiClient.dio.get('/me/settings');
     final raw = response.data;
     if (raw is! Map) {
+      AppLogger.e(
+        'SettingsRepository._fetchSettings failed: invalid settings payload',
+        StateError('Invalid settings payload.'),
+        StackTrace.current,
+      );
       throw StateError('Invalid settings payload.');
     }
     return _parseSettings(Map<String, dynamic>.from(raw));
@@ -228,6 +249,11 @@ class SettingsRepository {
     if (value is String && value.trim().isNotEmpty) {
       return value;
     }
+    AppLogger.e(
+      'SettingsRepository failed to parse non-empty string field "$field"',
+      StateError('Invalid "$field" field.'),
+      StackTrace.current,
+    );
     throw StateError('Invalid "$field" field.');
   }
 
@@ -242,6 +268,11 @@ class SettingsRepository {
     if (value is bool) {
       return value;
     }
+    AppLogger.e(
+      'SettingsRepository failed to parse bool field "$field"',
+      StateError('Invalid "$field" field.'),
+      StackTrace.current,
+    );
     throw StateError('Invalid "$field" field.');
   }
 
@@ -249,6 +280,11 @@ class SettingsRepository {
     if (value is int) {
       return value;
     }
+    AppLogger.e(
+      'SettingsRepository failed to parse int field "$field"',
+      StateError('Invalid "$field" field.'),
+      StackTrace.current,
+    );
     throw StateError('Invalid "$field" field.');
   }
 }

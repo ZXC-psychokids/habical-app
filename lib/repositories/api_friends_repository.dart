@@ -1,4 +1,5 @@
 import '../core/api_client.dart';
+import '../core/app_logger.dart';
 import '../models/friend_feed_item.dart';
 import '../models/friend_invite_item.dart';
 import '../models/friend_list_item.dart';
@@ -17,27 +18,41 @@ class ApiFriendsRepository implements FriendsRepository {
     final response = await _apiClient.dio.get('/me/friends');
     final raw = response.data;
     if (raw is! List) {
+      AppLogger.e(
+        'Failed to parse friends payload',
+        StateError('Invalid friends payload.'),
+        StackTrace.current,
+      );
       throw StateError('Invalid friends payload.');
     }
 
     final result = raw
         .map((item) => Map<String, dynamic>.from(item as Map))
         .map((map) {
-          final userRaw = map['user'];
-          if (userRaw is! Map) {
-            throw StateError('Invalid friend user payload.');
+          try {
+            final userRaw = map['user'];
+            if (userRaw is! Map) {
+              throw StateError('Invalid friend user payload.');
+            }
+            final user = Map<String, dynamic>.from(userRaw);
+            final handle = _requiredString(user['handle'], 'user.handle');
+            return FriendListItem(
+              id: _requiredString(user['id'], 'user.id'),
+              userId: _requiredString(user['id'], 'user.id'),
+              name: handle,
+              status: FriendRelationStatus.connected,
+              streakDays: 0,
+              sharedHabitsCount: _asInt(map['sharedHabitsCount']) ?? 0,
+              sharedHabitTitle: null,
+            );
+          } catch (error, stackTrace) {
+            AppLogger.e(
+              'Failed to parse FriendListItem data=${AppLogger.pretty(map)}',
+              error,
+              stackTrace,
+            );
+            rethrow;
           }
-          final user = Map<String, dynamic>.from(userRaw);
-          final handle = _requiredString(user['handle'], 'user.handle');
-          return FriendListItem(
-            id: _requiredString(user['id'], 'user.id'),
-            userId: _requiredString(user['id'], 'user.id'),
-            name: handle,
-            status: FriendRelationStatus.connected,
-            streakDays: 0,
-            sharedHabitsCount: _asInt(map['sharedHabitsCount']) ?? 0,
-            sharedHabitTitle: null,
-          );
         })
         .toList(growable: false)
       ..sort((a, b) => a.name.compareTo(b.name));
@@ -49,24 +64,38 @@ class ApiFriendsRepository implements FriendsRepository {
     final response = await _apiClient.dio.get('/me/friend-invites');
     final raw = response.data;
     if (raw is! List) {
+      AppLogger.e(
+        'Failed to parse friend invites payload',
+        StateError('Invalid friend invites payload.'),
+        StackTrace.current,
+      );
       throw StateError('Invalid friend invites payload.');
     }
 
     final result = raw
         .map((item) => Map<String, dynamic>.from(item as Map))
         .map((map) {
-          final senderRaw = map['sender'];
-          if (senderRaw is! Map) {
-            throw StateError('Invalid invite sender payload.');
+          try {
+            final senderRaw = map['sender'];
+            if (senderRaw is! Map) {
+              throw StateError('Invalid invite sender payload.');
+            }
+            final sender = Map<String, dynamic>.from(senderRaw);
+            return FriendInviteItem(
+              id: _requiredString(map['id'], 'id'),
+              fromUserId: _requiredString(sender['id'], 'sender.id'),
+              fromName: _requiredString(sender['handle'], 'sender.handle'),
+              fromEmail: _requiredString(sender['handle'], 'sender.handle'),
+              sentAt: _requiredDateTime(map['createdAt'], 'createdAt'),
+            );
+          } catch (error, stackTrace) {
+            AppLogger.e(
+              'Failed to parse FriendInviteItem data=${AppLogger.pretty(map)}',
+              error,
+              stackTrace,
+            );
+            rethrow;
           }
-          final sender = Map<String, dynamic>.from(senderRaw);
-          return FriendInviteItem(
-            id: _requiredString(map['id'], 'id'),
-            fromUserId: _requiredString(sender['id'], 'sender.id'),
-            fromName: _requiredString(sender['handle'], 'sender.handle'),
-            fromEmail: _requiredString(sender['handle'], 'sender.handle'),
-            sentAt: _requiredDateTime(map['createdAt'], 'createdAt'),
-          );
         })
         .toList(growable: false)
       ..sort((a, b) => b.sentAt.compareTo(a.sentAt));
@@ -118,12 +147,22 @@ class ApiFriendsRepository implements FriendsRepository {
     );
     final raw = response.data;
     if (raw is! Map) {
+      AppLogger.e(
+        'Failed to parse feed payload',
+        StateError('Invalid feed payload.'),
+        StackTrace.current,
+      );
       throw StateError('Invalid feed payload.');
     }
 
     final map = Map<String, dynamic>.from(raw);
     final itemsRaw = map['items'];
     if (itemsRaw is! List) {
+      AppLogger.e(
+        'Failed to parse feed items payload',
+        StateError('Invalid feed items payload.'),
+        StackTrace.current,
+      );
       throw StateError('Invalid feed items payload.');
     }
 
@@ -169,6 +208,11 @@ class ApiFriendsRepository implements FriendsRepository {
         tasksRaw is! List ||
         eventsRaw is! List ||
         sharedRaw is! List) {
+      AppLogger.e(
+        'Failed to parse friend page payload',
+        StateError('Invalid friend page payload.'),
+        StackTrace.current,
+      );
       throw StateError('Invalid friend page payload.');
     }
 
@@ -243,28 +287,37 @@ class ApiFriendsRepository implements FriendsRepository {
   }
 
   FriendFeedItem _parseFeedItem(Map<String, dynamic> map) {
-    final actorRaw = map['actor'];
-    if (actorRaw is! Map) {
-      throw StateError('Invalid feed actor payload.');
+    try {
+      final actorRaw = map['actor'];
+      if (actorRaw is! Map) {
+        throw StateError('Invalid feed actor payload.');
+      }
+      final actor = Map<String, dynamic>.from(actorRaw);
+
+      final relatedUser = _asMap(map['relatedUser']);
+      final relatedHabit = _asMap(map['relatedHabit']);
+
+      return FriendFeedItem(
+        id: _requiredString(map['id'], 'id'),
+        type: _parseFeedType(_requiredString(map['type'], 'type')),
+        actorHandle: _requiredString(actor['handle'], 'actor.handle'),
+        relatedUserHandle: relatedUser == null
+            ? null
+            : _requiredString(relatedUser['handle'], 'relatedUser.handle'),
+        relatedHabitTitle: relatedHabit == null
+            ? null
+            : _requiredString(relatedHabit['title'], 'relatedHabit.title'),
+        streakValue: _asInt(map['streakValue']),
+        createdAt: _requiredDateTime(map['createdAt'], 'createdAt'),
+      );
+    } catch (error, stackTrace) {
+      AppLogger.e(
+        'Failed to parse FriendFeedItem data=${AppLogger.pretty(map)}',
+        error,
+        stackTrace,
+      );
+      rethrow;
     }
-    final actor = Map<String, dynamic>.from(actorRaw);
-
-    final relatedUser = _asMap(map['relatedUser']);
-    final relatedHabit = _asMap(map['relatedHabit']);
-
-    return FriendFeedItem(
-      id: _requiredString(map['id'], 'id'),
-      type: _parseFeedType(_requiredString(map['type'], 'type')),
-      actorHandle: _requiredString(actor['handle'], 'actor.handle'),
-      relatedUserHandle: relatedUser == null
-          ? null
-          : _requiredString(relatedUser['handle'], 'relatedUser.handle'),
-      relatedHabitTitle: relatedHabit == null
-          ? null
-          : _requiredString(relatedHabit['title'], 'relatedHabit.title'),
-      streakValue: _asInt(map['streakValue']),
-      createdAt: _requiredDateTime(map['createdAt'], 'createdAt'),
-    );
   }
 
   FriendFeedType _parseFeedType(String type) {

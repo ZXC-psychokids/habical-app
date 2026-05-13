@@ -1,4 +1,7 @@
+import 'package:dio/dio.dart';
+
 import '../core/api_client.dart';
+import '../core/app_logger.dart';
 import '../models/models.dart';
 import 'habits_repository.dart';
 
@@ -18,15 +21,29 @@ class ApiHabitsRepository implements HabitsRepository {
     final raw = response.data;
     final listPayload = _extractHabitsList(raw);
     if (listPayload == null) {
+      AppLogger.e(
+        'Failed to parse habits list payload',
+        StateError('Invalid habits list payload.'),
+        StackTrace.current,
+      );
       throw StateError('Invalid habits list payload.');
     }
 
     final items = listPayload
         .map((item) => Map<String, dynamic>.from(item as Map))
         .map((map) {
-          final habit = Habit.fromMap(map);
-          final streakDays = _extractStreakDays(map);
-          return HabitListItem(habit: habit, streakDays: streakDays);
+          try {
+            final habit = Habit.fromMap(map);
+            final streakDays = _extractStreakDays(map);
+            return HabitListItem(habit: habit, streakDays: streakDays);
+          } catch (error, stackTrace) {
+            AppLogger.e(
+              'Failed to parse Habit data=${AppLogger.pretty(map)}',
+              error,
+              stackTrace,
+            );
+            rethrow;
+          }
         })
         .toList(growable: false)
       ..sort((a, b) => b.streakDays.compareTo(a.streakDays));
@@ -48,13 +65,15 @@ class ApiHabitsRepository implements HabitsRepository {
     if (normalizedTitle.isEmpty) {
       throw ArgumentError('Habit title cannot be empty.');
     }
-    final requestBody = {
+
+    final requestBody = <String, dynamic>{
       'title': normalizedTitle,
       'color': color,
       'scheduleType': scheduleType,
       'intervalDays': intervalDays,
       'weekdays': weekdays,
     };
+
     Response<dynamic> response;
     try {
       response = await _apiClient.dio.post('/me/habits', data: requestBody);
@@ -72,9 +91,25 @@ class ApiHabitsRepository implements HabitsRepository {
 
     final raw = response.data;
     if (raw is! Map) {
+      AppLogger.e(
+        'Failed to parse created habit payload',
+        StateError('Invalid created habit payload.'),
+        StackTrace.current,
+      );
       throw StateError('Invalid created habit payload.');
     }
-    return Habit.fromMap(Map<String, dynamic>.from(raw));
+
+    final map = Map<String, dynamic>.from(raw);
+    try {
+      return Habit.fromMap(map);
+    } catch (error, stackTrace) {
+      AppLogger.e(
+        'Failed to parse created Habit data=${AppLogger.pretty(map)}',
+        error,
+        stackTrace,
+      );
+      rethrow;
+    }
   }
 
   @override
@@ -82,13 +117,28 @@ class ApiHabitsRepository implements HabitsRepository {
     final response = await _apiClient.dio.get('/me/habits/$habitId');
     final raw = response.data;
     if (raw is! Map) {
+      AppLogger.e(
+        'Failed to parse habit details payload',
+        StateError('Invalid habit details payload.'),
+        StackTrace.current,
+      );
       throw StateError('Invalid habit details payload.');
     }
 
     final map = Map<String, dynamic>.from(raw);
-    final habit = Habit.fromMap(map);
-    final tasks = _extractTasks(map)..sort((a, b) => a.startsAt.compareTo(b.startsAt));
-    return HabitDetailsData(habit: habit, tasks: tasks);
+    try {
+      final habit = Habit.fromMap(map);
+      final tasks = _extractTasks(map)
+        ..sort((a, b) => a.startsAt.compareTo(b.startsAt));
+      return HabitDetailsData(habit: habit, tasks: tasks);
+    } catch (error, stackTrace) {
+      AppLogger.e(
+        'Failed to parse HabitDetails data=${AppLogger.pretty(map)}',
+        error,
+        stackTrace,
+      );
+      rethrow;
+    }
   }
 
   @override
@@ -106,6 +156,11 @@ class ApiHabitsRepository implements HabitsRepository {
     final raw = response.data;
     final listPayload = _extractCalendarDays(raw);
     if (listPayload == null) {
+      AppLogger.e(
+        'Failed to parse habits calendar summary payload',
+        StateError('Invalid habits calendar summary payload.'),
+        StackTrace.current,
+      );
       throw StateError('Invalid habits calendar summary payload.');
     }
 
@@ -114,11 +169,13 @@ class ApiHabitsRepository implements HabitsRepository {
       if (item is! Map) {
         continue;
       }
+
       final map = Map<String, dynamic>.from(item);
       final date = _extractDate(map);
       if (date == null) {
         continue;
       }
+
       final colors = _extractCompletedColors(map);
       result.add(
         HabitCalendarDaySummary(
@@ -167,9 +224,25 @@ class ApiHabitsRepository implements HabitsRepository {
     );
     final raw = response.data;
     if (raw is! Map) {
+      AppLogger.e(
+        'Failed to parse updated habit payload',
+        StateError('Invalid updated habit payload.'),
+        StackTrace.current,
+      );
       throw StateError('Invalid updated habit payload.');
     }
-    return Habit.fromMap(Map<String, dynamic>.from(raw));
+
+    final map = Map<String, dynamic>.from(raw);
+    try {
+      return Habit.fromMap(map);
+    } catch (error, stackTrace) {
+      AppLogger.e(
+        'Failed to parse updated Habit data=${AppLogger.pretty(map)}',
+        error,
+        stackTrace,
+      );
+      rethrow;
+    }
   }
 
   @override
@@ -197,18 +270,34 @@ class ApiHabitsRepository implements HabitsRepository {
         'weekdays': weekdays,
       },
     );
+
     final raw = response.data;
     if (raw is! Map) {
+      AppLogger.e(
+        'Failed to parse shared habit creation payload',
+        StateError('Invalid shared habit creation payload.'),
+        StackTrace.current,
+      );
       throw StateError('Invalid shared habit creation payload.');
     }
+
     final map = Map<String, dynamic>.from(raw);
     final firstHabit = _asMap(map['firstHabit']);
     final secondHabit = _asMap(map['secondHabit']);
     if (firstHabit == null || secondHabit == null) {
+      AppLogger.e(
+        'Failed to parse shared habit participants payload',
+        StateError('Invalid shared habit creation payload.'),
+        StackTrace.current,
+      );
       throw StateError('Invalid shared habit creation payload.');
     }
+
     return SharedHabitCreationResult(
-      sharedHabitPairId: _requiredString(map['sharedHabitPairId'], 'sharedHabitPairId'),
+      sharedHabitPairId: _requiredString(
+        map['sharedHabitPairId'],
+        'sharedHabitPairId',
+      ),
       firstHabitId: _requiredString(firstHabit['id'], 'firstHabit.id'),
       secondHabitId: _requiredString(secondHabit['id'], 'secondHabit.id'),
     );
@@ -218,24 +307,47 @@ class ApiHabitsRepository implements HabitsRepository {
   Future<SharedHabitDetails> fetchSharedHabitDetails({
     required String sharedHabitPairId,
   }) async {
-    final response = await _apiClient.dio.get('/me/shared-habits/$sharedHabitPairId');
+    final response = await _apiClient.dio.get(
+      '/me/shared-habits/$sharedHabitPairId',
+    );
     final raw = response.data;
     if (raw is! Map) {
+      AppLogger.e(
+        'Failed to parse shared habit details payload',
+        StateError('Invalid shared habit details payload.'),
+        StackTrace.current,
+      );
       throw StateError('Invalid shared habit details payload.');
     }
+
     final map = Map<String, dynamic>.from(raw);
     final youRaw = _asMap(map['you']);
     final friendRaw = _asMap(map['friend']);
     if (youRaw == null || friendRaw == null) {
+      AppLogger.e(
+        'Failed to parse shared habit participants payload',
+        StateError('Invalid shared habit participant payload.'),
+        StackTrace.current,
+      );
       throw StateError('Invalid shared habit participant payload.');
     }
+
     return SharedHabitDetails(
-      sharedHabitPairId: _requiredString(map['sharedHabitPairId'], 'sharedHabitPairId'),
+      sharedHabitPairId: _requiredString(
+        map['sharedHabitPairId'],
+        'sharedHabitPairId',
+      ),
       title: _requiredString(map['title'], 'title'),
       color: _requiredString(map['color'], 'color'),
       streakDays: _requiredInt(map['streakDays'], 'streakDays'),
-      youCompletedToday: _requiredBool(map['youCompletedToday'], 'youCompletedToday'),
-      friendCompletedToday: _requiredBool(map['friendCompletedToday'], 'friendCompletedToday'),
+      youCompletedToday: _requiredBool(
+        map['youCompletedToday'],
+        'youCompletedToday',
+      ),
+      friendCompletedToday: _requiredBool(
+        map['friendCompletedToday'],
+        'friendCompletedToday',
+      ),
       you: SharedHabitParticipant(
         id: _requiredString(youRaw['id'], 'you.id'),
         handle: _requiredString(youRaw['handle'], 'you.handle'),
@@ -259,8 +371,14 @@ class ApiHabitsRepository implements HabitsRepository {
     );
     final raw = response.data;
     if (raw is! Map) {
+      AppLogger.e(
+        'Failed to parse shared habit remind payload',
+        StateError('Invalid shared habit remind payload.'),
+        StackTrace.current,
+      );
       throw StateError('Invalid shared habit remind payload.');
     }
+
     final map = Map<String, dynamic>.from(raw);
     return SharedHabitRemindResult(
       message: _requiredString(map['message'], 'message'),
@@ -276,7 +394,16 @@ class ApiHabitsRepository implements HabitsRepository {
     final tasks = <Task>[];
     for (final item in tasksRaw) {
       if (item is Map) {
-        tasks.add(Task.fromMap(Map<String, dynamic>.from(item)));
+        try {
+          tasks.add(Task.fromMap(Map<String, dynamic>.from(item)));
+        } catch (error, stackTrace) {
+          AppLogger.e(
+            'Failed to parse Habit Task data=${AppLogger.pretty(item)}',
+            error,
+            stackTrace,
+          );
+          rethrow;
+        }
       }
     }
     return tasks;
@@ -310,8 +437,11 @@ class ApiHabitsRepository implements HabitsRepository {
     return null;
   }
 
-  List<HabitCalendarCompletedHabit> _extractCompletedColors(Map<String, dynamic> map) {
+  List<HabitCalendarCompletedHabit> _extractCompletedColors(
+    Map<String, dynamic> map,
+  ) {
     final completed = <HabitCalendarCompletedHabit>[];
+
     final directColors = map['completedHabitColors'];
     if (directColors is List) {
       var index = 0;
@@ -349,6 +479,7 @@ class ApiHabitsRepository implements HabitsRepository {
         }
       }
     }
+
     return completed;
   }
 

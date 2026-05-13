@@ -1,6 +1,7 @@
 ﻿import 'package:dio/dio.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../core/app_logger.dart';
 import '../../models/habit_calendar_day_summary.dart';
 import '../../models/habit_list_item.dart';
 import '../../repositories/habits_repository.dart';
@@ -18,6 +19,7 @@ class HabitsCubit extends Cubit<HabitsState> {
   HabitsRepository get repository => _repository;
 
   Future<void> loadHabits() async {
+    AppLogger.i('HabitsCubit.loadHabits started');
     emit(state.copyWith(status: HabitsStatus.loading, clearError: true));
 
     try {
@@ -41,7 +43,9 @@ class HabitsCubit extends Cubit<HabitsState> {
           clearError: true,
         ),
       );
-    } catch (error) {
+      AppLogger.i('HabitsCubit.loadHabits completed, count=${items.length}');
+    } catch (error, stackTrace) {
+      AppLogger.e('HabitsCubit.loadHabits failed', error, stackTrace);
       emit(
         state.copyWith(
           status: HabitsStatus.failure,
@@ -70,7 +74,8 @@ class HabitsCubit extends Cubit<HabitsState> {
         weekdays: weekdays,
       );
       await loadHabits();
-    } catch (error) {
+    } catch (error, stackTrace) {
+      AppLogger.e('HabitsCubit.addHabit failed', error, stackTrace);
       emit(
         state.copyWith(
           status: HabitsStatus.failure,

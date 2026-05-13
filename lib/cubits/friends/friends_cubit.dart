@@ -1,5 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../core/app_logger.dart';
 import '../../repositories/friends_repository.dart';
 import 'friends_state.dart';
 
@@ -12,6 +13,7 @@ class FriendsCubit extends Cubit<FriendsState> {
   final FriendsRepository _repository;
 
   Future<void> loadFriends() async {
+    AppLogger.i('FriendsCubit.loadFriends started');
     emit(
       state.copyWith(
         status: FriendsStatus.loading,
@@ -40,7 +42,9 @@ class FriendsCubit extends Cubit<FriendsState> {
           clearInfo: true,
         ),
       );
-    } catch (_) {
+      AppLogger.i('FriendsCubit.loadFriends completed');
+    } catch (error, stackTrace) {
+      AppLogger.e('FriendsCubit.loadFriends failed', error, stackTrace);
       emit(
         state.copyWith(
           status: FriendsStatus.failure,
@@ -64,7 +68,8 @@ class FriendsCubit extends Cubit<FriendsState> {
           nextFeedCursor: page.nextCursor,
         ),
       );
-    } catch (_) {
+    } catch (error, stackTrace) {
+      AppLogger.e('FriendsCubit.loadMoreFeed failed', error, stackTrace);
       emit(
         state.copyWith(
           status: FriendsStatus.failure,
@@ -83,7 +88,8 @@ class FriendsCubit extends Cubit<FriendsState> {
           clearError: true,
         ),
       );
-    } catch (_) {
+    } catch (error, stackTrace) {
+      AppLogger.e('FriendsCubit.sendInviteByHandle failed', error, stackTrace);
       emit(
         state.copyWith(
           status: FriendsStatus.failure,
@@ -103,7 +109,8 @@ class FriendsCubit extends Cubit<FriendsState> {
           clearError: true,
         ),
       );
-    } catch (_) {
+    } catch (error, stackTrace) {
+      AppLogger.e('FriendsCubit.acceptInvite failed', error, stackTrace);
       emit(
         state.copyWith(
           status: FriendsStatus.failure,
@@ -123,7 +130,8 @@ class FriendsCubit extends Cubit<FriendsState> {
           clearError: true,
         ),
       );
-    } catch (_) {
+    } catch (error, stackTrace) {
+      AppLogger.e('FriendsCubit.rejectInvite failed', error, stackTrace);
       emit(
         state.copyWith(
           status: FriendsStatus.failure,
@@ -143,7 +151,8 @@ class FriendsCubit extends Cubit<FriendsState> {
           clearError: true,
         ),
       );
-    } catch (_) {
+    } catch (error, stackTrace) {
+      AppLogger.e('FriendsCubit.removeFriend failed', error, stackTrace);
       emit(
         state.copyWith(
           status: FriendsStatus.failure,
@@ -159,7 +168,8 @@ class FriendsCubit extends Cubit<FriendsState> {
         userId: friendUserId,
         day: DateTime.now(),
       );
-    } catch (_) {
+    } catch (error, stackTrace) {
+      AppLogger.e('FriendsCubit.refreshFriendPage failed', error, stackTrace);
       emit(
         state.copyWith(
           status: FriendsStatus.failure,
