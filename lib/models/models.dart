@@ -4,6 +4,8 @@ export 'event.dart';
 export 'friend_list_item.dart';
 export 'friend_invite_item.dart';
 export 'habit.dart';
+export 'habit_calendar_day_summary.dart';
 export 'habit_details_data.dart';
 export 'habit_list_item.dart';
+export 'shared_habit_models.dart';
 export 'task.dart';
