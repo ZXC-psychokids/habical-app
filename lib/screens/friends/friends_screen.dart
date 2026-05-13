@@ -3,7 +3,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../cubits/friends/friends_cubit.dart';
 import '../../cubits/friends/friends_state.dart';
-import '../../models/friend_feed_item.dart';
 import '../../models/friend_invite_item.dart';
 import '../../models/friend_list_item.dart';
 import '../../repositories/friends_repository.dart';
@@ -29,10 +28,24 @@ class FriendsScreen extends StatelessWidget {
   }
 }
 
-class _FriendsView extends StatelessWidget {
+class _FriendsView extends StatefulWidget {
   const _FriendsView({required this.repository});
 
   final FriendsRepository repository;
+
+  @override
+  State<_FriendsView> createState() => _FriendsViewState();
+}
+
+class _FriendsViewState extends State<_FriendsView> {
+  final TextEditingController _searchController = TextEditingController();
+  String _query = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -55,62 +68,149 @@ class _FriendsView extends StatelessWidget {
         }
       },
       builder: (context, state) {
-        final isLoading =
-            state.status == FriendsStatus.loading &&
+        final isInitialLoading = state.status == FriendsStatus.loading &&
             state.items.isEmpty &&
-            state.feedItems.isEmpty;
+            state.incomingInvites.isEmpty;
+
+        final sortedFriends = _sortFriends(state.items);
+        final filteredInvites = _filterInvites(state.incomingInvites, _query);
+        final filteredFriends = _filterFriends(sortedFriends, _query);
 
         return Scaffold(
-          appBar: AppBar(
-            title: const Text('Friends'),
-            actions: [
-              IconButton(
-                onPressed: () => _openInvitesDialog(context, state.incomingInvites),
-                icon: const Icon(Icons.mail_outline),
-                tooltip: 'Incoming invites',
-              ),
-            ],
-          ),
-          body: RefreshIndicator(
-            onRefresh: () => context.read<FriendsCubit>().loadFriends(),
-            child: ListView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.all(16),
-              children: [
-                if (isLoading)
+          backgroundColor: const Color(0xFFFFFFFF),
+          body: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(25, 20, 25, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                   const Padding(
-                    padding: EdgeInsets.only(bottom: 12),
-                    child: Center(child: CircularProgressIndicator()),
-                  ),
-                _InviteByHandleCard(),
-                const SizedBox(height: 16),
-                const _SectionHeader(title: 'Friends'),
-                if (state.items.isEmpty)
-                  const Text('No friends yet.')
-                else
-                  ...state.items.map(
-                    (friend) => _FriendTile(
-                      friend: friend,
-                      onOpen: () => _openFriendPage(context, friend),
-                      onRemove: () =>
-                          context.read<FriendsCubit>().removeFriend(friend.userId),
+                    padding: EdgeInsets.symmetric(horizontal: 12),
+                    child: Text(
+                      '\u0414\u0440\u0443\u0437\u044c\u044f',
+                      style: TextStyle(
+                        fontSize: 48 / 1.56,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF000000),
+                      ),
                     ),
                   ),
-                const SizedBox(height: 16),
-                const _SectionHeader(title: 'Feed'),
-                if (state.feedItems.isEmpty)
-                  const Text('Feed is empty.')
-                else
-                  ...state.feedItems.map(_FeedTile.new),
-                if (state.nextFeedCursor != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 8),
-                    child: OutlinedButton(
-                      onPressed: () => context.read<FriendsCubit>().loadMoreFeed(),
-                      child: const Text('Load more'),
+                  const SizedBox(height: 12),
+                  Container(
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFFFFF),
+                      borderRadius: BorderRadius.circular(15),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color.fromRGBO(29, 39, 51, 0.30),
+                          offset: Offset(0, 4),
+                          blurRadius: 10.1,
+                        ),
+                      ],
+                    ),
+                    child: TextField(
+                      controller: _searchController,
+                      onChanged: (value) => setState(() => _query = value.trim()),
+                      decoration: const InputDecoration(
+                        border: InputBorder.none,
+                        hintText: '',
+                        prefixIcon: Icon(
+                          Icons.search,
+                          color: Color(0xFF000000),
+                          size: 24,
+                        ),
+                        contentPadding: EdgeInsets.only(top: 8, right: 12),
+                      ),
                     ),
                   ),
-              ],
+                  const SizedBox(height: 16),
+                  Expanded(
+                    child: RefreshIndicator(
+                      onRefresh: () => context.read<FriendsCubit>().loadFriends(),
+                      child: ListView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: EdgeInsets.zero,
+                        children: [
+                          if (isInitialLoading)
+                            const Padding(
+                              padding: EdgeInsets.only(bottom: 12),
+                              child: Center(
+                                child: CircularProgressIndicator(
+                                  color: Color(0xFF0277BC),
+                                ),
+                              ),
+                            ),
+                          ...filteredInvites.map(
+                            (invite) => Padding(
+                              padding: const EdgeInsets.only(bottom: 12),
+                              child: _InviteCard(
+                                invite: invite,
+                                onAccept: () async {
+                                  await context
+                                      .read<FriendsCubit>()
+                                      .acceptInvite(invite.id);
+                                },
+                                onReject: () async {
+                                  await context
+                                      .read<FriendsCubit>()
+                                      .rejectInvite(invite.id);
+                                },
+                              ),
+                            ),
+                          ),
+                          ...filteredFriends.map(
+                            (friend) => Padding(
+                              padding: const EdgeInsets.only(bottom: 12),
+                              child: _FriendCard(
+                                friend: friend,
+                                onTap: () => _openFriendPage(context, friend),
+                              ),
+                            ),
+                          ),
+                          if (filteredInvites.isEmpty && filteredFriends.isEmpty)
+                            const Padding(
+                              padding: EdgeInsets.only(top: 24),
+                              child: Center(
+                                child: Text(
+                                  '\u041d\u0438\u0447\u0435\u0433\u043e \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u043e',
+                                  style: TextStyle(
+                                    color: Color(0xFFABABAB),
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 54,
+                    child: ElevatedButton(
+                      onPressed: () => _openInviteDialog(context),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF0277BC),
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                      ),
+                      child: const Text(
+                        '\u0414\u043e\u0431\u0430\u0432\u0438\u0442\u044c \u0434\u0440\u0443\u0433\u0430',
+                        style: TextStyle(
+                          fontSize: 18 / 1.56,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         );
@@ -118,53 +218,35 @@ class _FriendsView extends StatelessWidget {
     );
   }
 
-  Future<void> _openInvitesDialog(
-    BuildContext context,
-    List<FriendInviteItem> invites,
-  ) async {
-    final cubit = context.read<FriendsCubit>();
+  List<FriendListItem> _sortFriends(List<FriendListItem> items) {
+    final sorted = [...items];
+    sorted.sort((a, b) {
+      if (a.sharedHabitsCount != b.sharedHabitsCount) {
+        return b.sharedHabitsCount.compareTo(a.sharedHabitsCount);
+      }
+      return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+    });
+    return sorted;
+  }
 
-    await showDialog<void>(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: const Text('Incoming invites'),
-          content: SizedBox(
-            width: 360,
-            child: invites.isEmpty
-                ? const Text('No incoming invites.')
-                : Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: invites
-                        .map(
-                          (invite) => _InviteRow(
-                            invite: invite,
-                            onAccept: () async {
-                              await cubit.acceptInvite(invite.id);
-                              if (context.mounted) {
-                                Navigator.of(dialogContext).pop();
-                              }
-                            },
-                            onReject: () async {
-                              await cubit.rejectInvite(invite.id);
-                              if (context.mounted) {
-                                Navigator.of(dialogContext).pop();
-                              }
-                            },
-                          ),
-                        )
-                        .toList(growable: false),
-                  ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('Close'),
-            ),
-          ],
-        );
-      },
-    );
+  List<FriendInviteItem> _filterInvites(List<FriendInviteItem> invites, String query) {
+    if (query.isEmpty) {
+      return invites;
+    }
+    final q = query.toLowerCase();
+    return invites
+        .where((item) => item.fromName.toLowerCase().contains(q))
+        .toList(growable: false);
+  }
+
+  List<FriendListItem> _filterFriends(List<FriendListItem> friends, String query) {
+    if (query.isEmpty) {
+      return friends;
+    }
+    final q = query.toLowerCase();
+    return friends
+        .where((item) => item.name.toLowerCase().contains(q))
+        .toList(growable: false);
   }
 
   Future<void> _openFriendPage(BuildContext context, FriendListItem item) async {
@@ -172,78 +254,163 @@ class _FriendsView extends StatelessWidget {
       MaterialPageRoute<void>(
         builder: (_) => FriendPageScreen(
           friendUserId: item.userId,
-          friendsRepository: repository,
+          friendsRepository: widget.repository,
         ),
       ),
     );
   }
-}
 
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({required this.title});
+  Future<void> _openInviteDialog(BuildContext context) async {
+    final cubit = context.read<FriendsCubit>();
+    final controller = TextEditingController();
 
-  final String title;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Text(
-        title,
-        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-      ),
-    );
-  }
-}
-
-class _InviteByHandleCard extends StatefulWidget {
-  @override
-  State<_InviteByHandleCard> createState() => _InviteByHandleCardState();
-}
-
-class _InviteByHandleCardState extends State<_InviteByHandleCard> {
-  final _controller = TextEditingController();
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Send invite by handle',
-              style: TextStyle(fontWeight: FontWeight.w700),
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return Dialog(
+          backgroundColor: const Color(0xFFFFFFFF),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  '\u0414\u043e\u0431\u0430\u0432\u0438\u0442\u044c \u0434\u0440\u0443\u0433\u0430',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF000000),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: controller,
+                  decoration: InputDecoration(
+                    hintText: '@handle',
+                    hintStyle: const TextStyle(color: Color(0xFFABABAB)),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: const BorderSide(color: Color(0xFFB5B5B5)),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: const BorderSide(
+                        color: Color(0xFF0277BC),
+                        width: 1.5,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    const Spacer(),
+                    TextButton(
+                      onPressed: () => Navigator.of(dialogContext).pop(),
+                      child: const Text(
+                        '\u041e\u0442\u043c\u0435\u043d\u0430',
+                        style: TextStyle(color: Color(0xFF0277BC)),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    FilledButton(
+                      onPressed: () async {
+                        final handle = controller.text.trim();
+                        if (handle.isEmpty) {
+                          return;
+                        }
+                        await cubit.sendInviteByHandle(handle);
+                        if (context.mounted) {
+                          Navigator.of(dialogContext).pop();
+                        }
+                      },
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFF0277BC),
+                      ),
+                      child: const Text('\u041e\u0442\u043f\u0440\u0430\u0432\u0438\u0442\u044c'),
+                    ),
+                  ],
+                ),
+              ],
             ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _controller,
-              decoration: const InputDecoration(
-                hintText: 'friend_handle',
-                border: OutlineInputBorder(),
+          ),
+        );
+      },
+    );
+    controller.dispose();
+  }
+}
+
+class _FriendCard extends StatelessWidget {
+  const _FriendCard({
+    required this.friend,
+    required this.onTap,
+  });
+
+  final FriendListItem friend;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final subtitle = friend.sharedHabitsCount > 0
+        ? '\u0421\u043e\u0432\u043c\u0435\u0441\u0442\u043d\u044b\u0445 \u043f\u0440\u0438\u0432\u044b\u0447\u0435\u043a ${friend.sharedHabitsCount}'
+        : '\u0421\u043e\u0432\u043c\u0435\u0441\u0442\u043d\u044b\u0445 \u043f\u0440\u0438\u0432\u044b\u0447\u0435\u043a \u043d\u0435\u0442';
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          color: const Color(0xFFFFFFFF),
+          borderRadius: BorderRadius.circular(15),
+          boxShadow: const [
+            BoxShadow(
+              color: Color.fromRGBO(29, 39, 51, 0.30),
+              offset: Offset(0, 4),
+              blurRadius: 10.1,
+            ),
+          ],
+        ),
+        padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+        child: Row(
+          children: [
+            Container(
+              width: 34,
+              height: 34,
+              decoration: BoxDecoration(
+                color: const Color(0xFF0277BC),
+                borderRadius: BorderRadius.circular(17),
+              ),
+              child: const Icon(
+                Icons.person_outline,
+                color: Colors.white,
+                size: 20,
               ),
             ),
-            const SizedBox(height: 8),
-            Align(
-              alignment: Alignment.centerRight,
-              child: FilledButton(
-                onPressed: () async {
-                  await context.read<FriendsCubit>().sendInviteByHandle(
-                    _controller.text,
-                  );
-                  if (!context.mounted) {
-                    return;
-                  }
-                  _controller.clear();
-                },
-                child: const Text('Send'),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    friend.name,
+                    style: const TextStyle(
+                      color: Color(0xFF000000),
+                      fontSize: 16 / 1.2,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      color: Color(0xFFABABAB),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -253,84 +420,113 @@ class _InviteByHandleCardState extends State<_InviteByHandleCard> {
   }
 }
 
-class _FriendTile extends StatelessWidget {
-  const _FriendTile({
-    required this.friend,
-    required this.onOpen,
-    required this.onRemove,
-  });
-
-  final FriendListItem friend;
-  final VoidCallback onOpen;
-  final VoidCallback onRemove;
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: ListTile(
-        onTap: onOpen,
-        leading: const Icon(Icons.person_outline),
-        title: Text(friend.name),
-        subtitle: Text(friend.userId),
-        trailing: IconButton(
-          tooltip: 'Remove',
-          onPressed: onRemove,
-          icon: const Icon(Icons.person_remove_outlined),
-        ),
-      ),
-    );
-  }
-}
-
-class _InviteRow extends StatelessWidget {
-  const _InviteRow({
+class _InviteCard extends StatelessWidget {
+  const _InviteCard({
     required this.invite,
     required this.onAccept,
     required this.onReject,
   });
 
   final FriendInviteItem invite;
-  final VoidCallback onAccept;
-  final VoidCallback onReject;
+  final Future<void> Function() onAccept;
+  final Future<void> Function() onReject;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFF0277BC),
+        borderRadius: BorderRadius.circular(15),
+        boxShadow: const [
+          BoxShadow(
+            color: Color.fromRGBO(29, 39, 51, 0.30),
+            offset: Offset(0, 4),
+            blurRadius: 10.1,
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.fromLTRB(12, 10, 10, 10),
       child: Row(
         children: [
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFFFFF),
+              borderRadius: BorderRadius.circular(17),
+            ),
+            child: const Icon(
+              Icons.person_outline,
+              color: Color(0xFF0277BC),
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(invite.fromName),
                 Text(
-                  invite.fromEmail,
-                  style: const TextStyle(color: Colors.black54),
+                  invite.fromName,
+                  style: const TextStyle(
+                    color: Color(0xFFFFFFFF),
+                    fontSize: 16 / 1.2,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                const Text(
+                  '\u0412\u0445\u043e\u0434\u044f\u0449\u0430\u044f \u0437\u0430\u044f\u0432\u043a\u0430',
+                  style: TextStyle(
+                    color: Color(0xFFD6EEFF),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ],
             ),
           ),
-          TextButton(onPressed: onReject, child: const Text('Reject')),
-          FilledButton(onPressed: onAccept, child: const Text('Accept')),
+          _CircleActionButton(
+            icon: Icons.close_rounded,
+            onTap: onReject,
+          ),
+          const SizedBox(width: 8),
+          _CircleActionButton(
+            icon: Icons.add_rounded,
+            onTap: onAccept,
+          ),
         ],
       ),
     );
   }
 }
 
-class _FeedTile extends StatelessWidget {
-  const _FeedTile(this.item);
+class _CircleActionButton extends StatelessWidget {
+  const _CircleActionButton({
+    required this.icon,
+    required this.onTap,
+  });
 
-  final FriendFeedItem item;
+  final IconData icon;
+  final Future<void> Function() onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: ListTile(
-        leading: const Icon(Icons.newspaper_outlined),
-        title: Text(item.toPresentationText()),
-        subtitle: Text(item.createdAt.toLocal().toString()),
+    return Material(
+      color: const Color(0xFFFFFFFF),
+      shape: const CircleBorder(),
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: () async => onTap(),
+        child: SizedBox(
+          width: 30,
+          height: 30,
+          child: Icon(
+            icon,
+            size: 22,
+            color: const Color(0xFF0277BC),
+          ),
+        ),
       ),
     );
   }
