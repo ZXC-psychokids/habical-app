@@ -36,6 +36,7 @@ class _RootViewState extends State<_RootView> {
     return BlocBuilder<NavigationCubit, NavigationState>(
       builder: (context, state) {
         return Scaffold(
+          backgroundColor: Colors.white,
           body: AnimatedSwitcher(
             duration: const Duration(milliseconds: 260),
             switchInCurve: Curves.easeOutCubic,
@@ -60,41 +61,45 @@ class _RootViewState extends State<_RootView> {
               child: _screenByTab(state.selectedTab),
             ),
           ),
-          bottomNavigationBar: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              AnimatedSwitcher(
-                duration: const Duration(milliseconds: 220),
-                switchInCurve: Curves.easeOutCubic,
-                switchOutCurve: Curves.easeInCubic,
-                transitionBuilder: (child, animation) {
-                  final slide = Tween<Offset>(
-                    begin: const Offset(0, 0.2),
-                    end: Offset.zero,
-                  ).animate(
-                    CurvedAnimation(
-                      parent: animation,
-                      curve: Curves.easeOutCubic,
-                    ),
-                  );
-                  return FadeTransition(
-                    opacity: animation,
-                    child: SlideTransition(position: slide, child: child),
-                  );
-                },
-                child: state.selectedTab == NavigationTab.calendar
-                    ? _CalendarScaleBar(
-                        key: const ValueKey('calendar_scale_bar'),
-                        selectedScale: _calendarScale,
-                        onTap: (scale) => setState(() => _calendarScale = scale),
-                      )
-                    : const SizedBox.shrink(key: ValueKey('no_scale_bar')),
-              ),
-              _BottomNavigationBar(
-                selectedTab: state.selectedTab,
-                onTap: (tab) => context.read<NavigationCubit>().selectTab(tab),
-              ),
-            ],
+          bottomNavigationBar: Container(
+            color: Colors.white,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 220),
+                  switchInCurve: Curves.easeOutCubic,
+                  switchOutCurve: Curves.easeInCubic,
+                  transitionBuilder: (child, animation) {
+                    final slide = Tween<Offset>(
+                      begin: const Offset(0, 0.2),
+                      end: Offset.zero,
+                    ).animate(
+                      CurvedAnimation(
+                        parent: animation,
+                        curve: Curves.easeOutCubic,
+                      ),
+                    );
+                    return FadeTransition(
+                      opacity: animation,
+                      child: SlideTransition(position: slide, child: child),
+                    );
+                  },
+                  child: state.selectedTab == NavigationTab.calendar
+                      ? _CalendarScaleBar(
+                          key: const ValueKey('calendar_scale_bar'),
+                          selectedScale: _calendarScale,
+                          onTap: (scale) =>
+                              setState(() => _calendarScale = scale),
+                        )
+                      : const SizedBox.shrink(key: ValueKey('no_scale_bar')),
+                ),
+                _BottomNavigationBar(
+                  selectedTab: state.selectedTab,
+                  onTap: (tab) => context.read<NavigationCubit>().selectTab(tab),
+                ),
+              ],
+            ),
           ),
         );
       },
@@ -138,14 +143,14 @@ class _CalendarScaleBar extends StatelessWidget {
         margin: const EdgeInsets.fromLTRB(14, 0, 14, 8),
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
         decoration: BoxDecoration(
-          color: const Color(0xFFEDEDED),
+          color: Colors.white,
           borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: const Color(0x1A000000)),
+          border: Border.all(color: const Color(0xFFD9D9D9)),
           boxShadow: const [
             BoxShadow(
-              color: Color(0x18000000),
-              blurRadius: 10,
-              offset: Offset(0, 1),
+              color: Color(0x1D27334D),
+              blurRadius: 10.1,
+              offset: Offset(0, 4),
             ),
           ],
         ),
@@ -167,45 +172,50 @@ class _CalendarScaleBar extends StatelessWidget {
                           vertical: 6,
                         ),
                         decoration: BoxDecoration(
-                          color: selected
-                              ? const Color(0xFFB7D8F1)
-                              : Colors.transparent,
-                          borderRadius: BorderRadius.circular(999),
+                          color: Colors.transparent,
+                          borderRadius: BorderRadius.circular(14),
                         ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            AnimatedScale(
-                              duration: const Duration(milliseconds: 180),
-                              curve: Curves.easeOutCubic,
-                              scale: selected ? 1 : 0.9,
-                              child: Icon(
-                                scale.icon,
-                                size: 16,
-                                color: selected
-                                    ? const Color(0xFF0E2C4F)
-                                    : const Color(0xFF505050),
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              AnimatedContainer(
+                                duration: const Duration(milliseconds: 180),
+                                curve: Curves.easeOutCubic,
+                                width: 24,
+                                height: 24,
+                                decoration: BoxDecoration(
+                                  color: selected
+                                      ? const Color(0xFF0277BC)
+                                      : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Icon(
+                                  scale.icon,
+                                  size: 14,
+                                  color: selected
+                                      ? Colors.white
+                                      : const Color(0xFF1F1F1F),
+                                ),
                               ),
-                            ),
-                            const SizedBox(width: 4),
-                            AnimatedDefaultTextStyle(
-                              duration: const Duration(milliseconds: 180),
-                              curve: Curves.easeOutCubic,
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight:
-                                    selected ? FontWeight.w700 : FontWeight.w500,
-                                color: selected
-                                    ? const Color(0xFF0E2C4F)
-                                    : const Color(0xFF505050),
+                              const SizedBox(width: 4),
+                              AnimatedDefaultTextStyle(
+                                duration: const Duration(milliseconds: 180),
+                                curve: Curves.easeOutCubic,
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w500,
+                                  color: const Color(0xFF1F1F1F),
+                                ),
+                                child: Text(
+                                  scale.label,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               ),
-                              child: Text(
-                                scale.label,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                     ),
@@ -266,14 +276,14 @@ class _BottomNavigationBar extends StatelessWidget {
         margin: const EdgeInsets.fromLTRB(14, 0, 14, 12),
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
         decoration: BoxDecoration(
-          color: const Color(0xFFEDEDED),
+          color: Colors.white,
           borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: const Color(0x1A000000)),
+          border: Border.all(color: const Color(0xFFD9D9D9)),
           boxShadow: const [
             BoxShadow(
-              color: Color(0x22000000),
-              blurRadius: 12,
-              offset: Offset(0, 2),
+              color: Color(0x1D27334D),
+              blurRadius: 10.1,
+              offset: Offset(0, 4),
             ),
           ],
         ),
@@ -286,7 +296,6 @@ class _BottomNavigationBar extends StatelessWidget {
                     label: item.label,
                     icon: isSelected ? item.activeIcon : item.inactiveIcon,
                     selected: isSelected,
-                    index: item.tab.index,
                     onTap: () => onTap(item.tab),
                   ),
                 );
@@ -317,14 +326,12 @@ class _NavItem extends StatelessWidget {
     required this.label,
     required this.icon,
     required this.selected,
-    required this.index,
     required this.onTap,
   });
 
   final String label;
   final IconData icon;
   final bool selected;
-  final int index;
   final VoidCallback onTap;
 
   @override
@@ -338,20 +345,25 @@ class _NavItem extends StatelessWidget {
         margin: const EdgeInsets.symmetric(horizontal: 2),
         padding: const EdgeInsets.symmetric(vertical: 4),
         decoration: BoxDecoration(
-          color: selected ? const Color(0x150277BD) : Colors.transparent,
+          color: Colors.transparent,
           borderRadius: BorderRadius.circular(14),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            AnimatedScale(
-              duration: Duration(milliseconds: 170 + (index * 8)),
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
               curve: Curves.easeOutCubic,
-              scale: selected ? 1 : 0.92,
+              width: 30,
+              height: 30,
+              decoration: BoxDecoration(
+                color: selected ? const Color(0xFF0277BC) : Colors.transparent,
+                borderRadius: BorderRadius.circular(9),
+              ),
               child: Icon(
                 icon,
                 size: 22,
-                color: selected ? Colors.black : const Color(0xFF505050),
+                color: selected ? Colors.white : const Color(0xFF1F1F1F),
               ),
             ),
             const SizedBox(height: 2),
@@ -360,8 +372,8 @@ class _NavItem extends StatelessWidget {
               curve: Curves.easeOutCubic,
               style: TextStyle(
                 fontSize: 10,
-                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                color: selected ? Colors.black : const Color(0xFF505050),
+                fontWeight: FontWeight.w500,
+                color: const Color(0xFF1F1F1F),
               ),
               child: Text(
                 label,
