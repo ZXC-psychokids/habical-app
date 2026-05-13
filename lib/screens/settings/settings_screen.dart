@@ -1,14 +1,35 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../repositories/auth_repository.dart';
+import 'settings_appearance_screen.dart';
 import 'settings_calendar_screen.dart';
 import 'settings_notifications_screen.dart';
 import 'settings_profile_screen.dart';
 import 'settings_ui_tokens.dart';
 
-class SettingsScreen extends StatelessWidget {
+enum _UiLanguage { ru, en }
+
+extension _UiLanguageView on _UiLanguage {
+  String get title {
+    switch (this) {
+      case _UiLanguage.ru:
+        return 'Русский';
+      case _UiLanguage.en:
+        return 'English';
+    }
+  }
+}
+
+class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
+
+  @override
+  State<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends State<SettingsScreen> {
+  _UiLanguage _selectedLanguage = _UiLanguage.ru;
 
   @override
   Widget build(BuildContext context) {
@@ -19,11 +40,22 @@ class SettingsScreen extends StatelessWidget {
           padding: SettingsUiTokens.pagePadding,
           children: [
             const Text(
-              'Настройки',
-              style: SettingsUiTokens.screenTitle,
+              '\u041d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438',
+              style: TextStyle(
+                fontSize: 32,
+                height: 1.08,
+                fontWeight: FontWeight.w700,
+                color: SettingsUiTokens.accentBlue,
+              ),
             ),
             const SizedBox(height: 46),
-            _SettingsCard(onLogout: () => _logout(context)),
+            _SettingsCard(
+              selectedLanguage: _selectedLanguage,
+              onLanguageSelected: (value) {
+                setState(() => _selectedLanguage = value);
+              },
+              onLogout: () => _logout(context),
+            ),
             const SizedBox(height: 18),
             const Center(
               child: Text(
@@ -46,20 +78,109 @@ class SettingsScreen extends StatelessWidget {
     try {
       await context.read<AuthRepository>().logout();
       messenger.showSnackBar(
-        const SnackBar(content: Text('Вы вышли из аккаунта')),
+        const SnackBar(
+          content: Text('\u0412\u044b \u0432\u044b\u0448\u043b\u0438 \u0438\u0437 \u0430\u043a\u043a\u0430\u0443\u043d\u0442\u0430'),
+        ),
       );
     } catch (_) {
       messenger.showSnackBar(
-        const SnackBar(content: Text('Не удалось выйти из аккаунта')),
+        const SnackBar(
+          content: Text('\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u0432\u044b\u0439\u0442\u0438 \u0438\u0437 \u0430\u043a\u043a\u0430\u0443\u043d\u0442\u0430'),
+        ),
       );
     }
   }
 }
 
 class _SettingsCard extends StatelessWidget {
-  const _SettingsCard({required this.onLogout});
+  const _SettingsCard({
+    required this.selectedLanguage,
+    required this.onLanguageSelected,
+    required this.onLogout,
+  });
 
+  final _UiLanguage selectedLanguage;
+  final ValueChanged<_UiLanguage> onLanguageSelected;
   final VoidCallback onLogout;
+
+  Future<_UiLanguage?> _showLanguageDialog(
+    BuildContext context,
+    _UiLanguage selected,
+  ) {
+    return showDialog<_UiLanguage>(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: SettingsUiTokens.cardBackground,
+        shape: const RoundedRectangleBorder(
+          borderRadius: SettingsUiTokens.cardRadius,
+        ),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                '\u042f\u0437\u044b\u043a',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: SettingsUiTokens.accentBlue,
+                ),
+              ),
+              const SizedBox(height: 10),
+              const Divider(
+                height: 1,
+                thickness: 1,
+                color: SettingsUiTokens.divider,
+              ),
+              const SizedBox(height: 8),
+              ListTile(
+                dense: true,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+                leading: const _LanguageFlag(language: _UiLanguage.ru),
+                title: const Text(
+                  'Русский',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: SettingsUiTokens.primaryText,
+                  ),
+                ),
+                trailing: selected == _UiLanguage.ru
+                    ? const Icon(
+                        Icons.check_rounded,
+                        color: SettingsUiTokens.accentBlue,
+                      )
+                    : null,
+                onTap: () => Navigator.of(context).pop(_UiLanguage.ru),
+              ),
+              ListTile(
+                dense: true,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+                leading: const _LanguageFlag(language: _UiLanguage.en),
+                title: const Text(
+                  'English',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: SettingsUiTokens.primaryText,
+                  ),
+                ),
+                trailing: selected == _UiLanguage.en
+                    ? const Icon(
+                        Icons.check_rounded,
+                        color: SettingsUiTokens.accentBlue,
+                      )
+                    : null,
+                onTap: null,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -74,7 +195,7 @@ class _SettingsCard extends StatelessWidget {
         children: [
           _SettingsRow(
             icon: Icons.person_outline,
-            title: 'Профиль',
+            title: '\u041f\u0440\u043e\u0444\u0438\u043b\u044c',
             trailingBuilder: (isActive) => _Chevron(
               color: isActive ? SettingsUiTokens.accentBlue : const Color(0xFF171717),
             ),
@@ -89,18 +210,20 @@ class _SettingsCard extends StatelessWidget {
           const _RowDivider(),
           _SettingsRow(
             icon: Icons.language,
-            title: 'Язык',
+            title: '\u042f\u0437\u044b\u043a',
             trailingBuilder: (isActive) => Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text(
-                  'Русский',
-                  style: TextStyle(
+                Text(
+                  selectedLanguage.title,
+                  style: const TextStyle(
                     color: SettingsUiTokens.mutedText,
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
+                const SizedBox(width: 6),
+                _LanguageFlag(language: selectedLanguage, compact: true),
                 const SizedBox(width: 10),
                 _Chevron(
                   color: isActive
@@ -109,21 +232,33 @@ class _SettingsCard extends StatelessWidget {
                 ),
               ],
             ),
-            onTap: () {},
+            onTap: () {
+              _showLanguageDialog(context, selectedLanguage).then((value) {
+                if (value != null) {
+                  onLanguageSelected(value);
+                }
+              });
+            },
           ),
           const _RowDivider(),
           _SettingsRow(
             icon: Icons.palette_outlined,
-            title: 'Внешний вид',
+            title: '\u0412\u043d\u0435\u0448\u043d\u0438\u0439 \u0432\u0438\u0434',
             trailingBuilder: (isActive) => _Chevron(
               color: isActive ? SettingsUiTokens.accentBlue : const Color(0xFF171717),
             ),
-            onTap: () {},
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const SettingsAppearanceScreen(),
+                ),
+              );
+            },
           ),
           const _RowDivider(),
           _SettingsRow(
             icon: Icons.calendar_today_outlined,
-            title: 'Календарь',
+            title: '\u041a\u0430\u043b\u0435\u043d\u0434\u0430\u0440\u044c',
             trailingBuilder: (isActive) => _Chevron(
               color: isActive ? SettingsUiTokens.accentBlue : const Color(0xFF171717),
             ),
@@ -138,7 +273,7 @@ class _SettingsCard extends StatelessWidget {
           const _RowDivider(),
           _SettingsRow(
             icon: Icons.notifications_none_outlined,
-            title: 'Уведомления',
+            title: '\u0423\u0432\u0435\u0434\u043e\u043c\u043b\u0435\u043d\u0438\u044f',
             trailingBuilder: (isActive) => _Chevron(
               color: isActive ? SettingsUiTokens.accentBlue : const Color(0xFF171717),
             ),
@@ -152,17 +287,8 @@ class _SettingsCard extends StatelessWidget {
           ),
           const _RowDivider(),
           _SettingsRow(
-            icon: Icons.build_outlined,
-            title: 'Поддержка',
-            trailingBuilder: (isActive) => _Chevron(
-              color: isActive ? SettingsUiTokens.accentBlue : const Color(0xFF171717),
-            ),
-            onTap: () {},
-          ),
-          const _RowDivider(),
-          _SettingsRow(
             icon: Icons.logout,
-            title: 'Выйти из аккаунта',
+            title: '\u0412\u044b\u0439\u0442\u0438 \u0438\u0437 \u0430\u043a\u043a\u0430\u0443\u043d\u0442\u0430',
             trailingBuilder: (isActive) => _Chevron(
               color: isActive ? SettingsUiTokens.accentBlue : const Color(0xFF171717),
             ),
@@ -275,6 +401,102 @@ class _RowDivider extends StatelessWidget {
         thickness: 1,
         color: SettingsUiTokens.divider,
       ),
+    );
+  }
+}
+
+class _LanguageFlag extends StatelessWidget {
+  const _LanguageFlag({required this.language, this.compact = false});
+
+  final _UiLanguage language;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final width = compact ? 16.0 : 20.0;
+    final height = compact ? 12.0 : 14.0;
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(2.5),
+      child: Container(
+        width: width,
+        height: height,
+        decoration: BoxDecoration(
+          color: const Color(0xFFF3F4F6),
+          border: Border.all(color: const Color(0x55000000)),
+        ),
+        child: switch (language) {
+          _UiLanguage.ru => const _RuFlag(),
+          _UiLanguage.en => const _UkLikeFlag(),
+        },
+      ),
+    );
+  }
+}
+
+class _RuFlag extends StatelessWidget {
+  const _RuFlag();
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Color(0xFFE5E7EB),
+            Color(0xFFE5E7EB),
+            Color(0xFF1D4ED8),
+            Color(0xFF1D4ED8),
+            Color(0xFFDC2626),
+            Color(0xFFDC2626),
+          ],
+          stops: [0.0, 0.33, 0.33, 0.66, 0.66, 1.0],
+        ),
+      ),
+    );
+  }
+}
+
+class _UkLikeFlag extends StatelessWidget {
+  const _UkLikeFlag();
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        const ColoredBox(color: Color(0xFF1F4EA8)),
+        Center(
+          child: Transform.rotate(
+            angle: 0.60,
+            child: Container(width: 36, height: 3, color: Colors.white),
+          ),
+        ),
+        Center(
+          child: Transform.rotate(
+            angle: -0.60,
+            child: Container(width: 36, height: 3, color: Colors.white),
+          ),
+        ),
+        Center(child: Container(width: 4, color: Colors.white)),
+        Center(child: Container(height: 4, color: Colors.white)),
+        Center(
+          child: Transform.rotate(
+            angle: 0.60,
+            child: Container(width: 36, height: 1.5, color: Color(0xFFDC2626)),
+          ),
+        ),
+        Center(
+          child: Transform.rotate(
+            angle: -0.60,
+            child: Container(width: 36, height: 1.5, color: Color(0xFFDC2626)),
+          ),
+        ),
+        Center(child: Container(width: 2, color: Color(0xFFDC2626))),
+        Center(child: Container(height: 2, color: Color(0xFFDC2626))),
+      ],
     );
   }
 }
