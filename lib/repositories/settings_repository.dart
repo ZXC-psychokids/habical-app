@@ -1,3 +1,7 @@
+import 'dart:typed_data';
+
+import 'package:dio/dio.dart';
+
 import '../core/api_client.dart';
 
 class ProfileData {
@@ -157,6 +161,27 @@ class SettingsRepository {
 
     await _apiClient.dio.patch('/me/settings/calendar', data: payload);
     return _fetchSettings();
+  }
+
+  Future<ProfileData> updateAvatar({
+    required Uint8List bytes,
+    required String filename,
+  }) async {
+    final mediaType = MultipartFile.lookupMediaType(filename);
+    final formData = FormData.fromMap({
+      'file': MultipartFile.fromBytes(
+        bytes,
+        filename: filename,
+        contentType: mediaType,
+      ),
+    });
+
+    final response = await _apiClient.dio.patch('/me/avatar', data: formData);
+    final raw = response.data;
+    if (raw is! Map) {
+      throw StateError('Invalid profile payload.');
+    }
+    return _parseProfile(Map<String, dynamic>.from(raw));
   }
 
   Future<UserSettingsData> _fetchSettings() async {

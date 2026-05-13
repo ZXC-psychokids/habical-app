@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -19,8 +19,8 @@ class _SettingsCalendarScreenState extends State<SettingsCalendarScreen> {
   static const _prefsShowWeekDaysKey = 'settings.calendar.showWeekDays';
 
   static const List<_WeekStartOption> _weekStartOptions = [
-    _WeekStartOption(value: 1, label: 'Понедельник'),
-    _WeekStartOption(value: 7, label: 'Воскресенье'),
+    _WeekStartOption(value: 1, label: 'РџРѕРЅРµРґРµР»СЊРЅРёРє'),
+    _WeekStartOption(value: 7, label: 'Р’РѕСЃРєСЂРµСЃРµРЅСЊРµ'),
   ];
 
   static const List<_TimezoneOption> _timezoneOptions = [
@@ -114,7 +114,7 @@ class _SettingsCalendarScreenState extends State<SettingsCalendarScreen> {
         return;
       }
       setState(() {
-        _error = 'Не удалось загрузить настройки календаря.';
+        _error = 'РќРµ СѓРґР°Р»РѕСЃСЊ Р·Р°РіСЂСѓР·РёС‚СЊ РЅР°СЃС‚СЂРѕР№РєРё РєР°Р»РµРЅРґР°СЂСЏ.';
         _isLoading = false;
       });
     }
@@ -146,15 +146,15 @@ class _SettingsCalendarScreenState extends State<SettingsCalendarScreen> {
       }
       setState(() {
         _error = e.response?.statusCode == 400
-            ? 'Некорректное значение для настроек календаря.'
-            : 'Не удалось сохранить настройки календаря.';
+            ? 'РќРµРєРѕСЂСЂРµРєС‚РЅРѕРµ Р·РЅР°С‡РµРЅРёРµ РґР»СЏ РЅР°СЃС‚СЂРѕРµРє РєР°Р»РµРЅРґР°СЂСЏ.'
+            : 'РќРµ СѓРґР°Р»РѕСЃСЊ СЃРѕС…СЂР°РЅРёС‚СЊ РЅР°СЃС‚СЂРѕР№РєРё РєР°Р»РµРЅРґР°СЂСЏ.';
       });
     } catch (_) {
       if (!mounted) {
         return;
       }
       setState(() {
-        _error = 'Не удалось сохранить настройки календаря.';
+        _error = 'РќРµ СѓРґР°Р»РѕСЃСЊ СЃРѕС…СЂР°РЅРёС‚СЊ РЅР°СЃС‚СЂРѕР№РєРё РєР°Р»РµРЅРґР°СЂСЏ.';
       });
     } finally {
       if (mounted) {
@@ -170,7 +170,7 @@ class _SettingsCalendarScreenState extends State<SettingsCalendarScreen> {
       return;
     }
     final selected = await _showSelectionDialog<int>(
-      title: 'День начала недели',
+      title: 'Р”РµРЅСЊ РЅР°С‡Р°Р»Р° РЅРµРґРµР»Рё',
       items: _weekStartOptions
           .map((option) => _SelectionItem<int>(value: option.value, label: option.label))
           .toList(growable: false),
@@ -188,7 +188,7 @@ class _SettingsCalendarScreenState extends State<SettingsCalendarScreen> {
       return;
     }
     final selected = await _showSelectionDialog<String>(
-      title: 'Часовой пояс',
+      title: 'Р§Р°СЃРѕРІРѕР№ РїРѕСЏСЃ',
       items: _timezoneOptions
           .map((option) => _SelectionItem<String>(value: option.iana, label: option.label))
           .toList(growable: false),
@@ -238,15 +238,15 @@ class _SettingsCalendarScreenState extends State<SettingsCalendarScreen> {
       }
       final status = e.response?.statusCode;
       if (status == 400) {
-        _showSnack('Проверьте название или цвет категории.');
+        _showSnack('РџСЂРѕРІРµСЂСЊС‚Рµ РЅР°Р·РІР°РЅРёРµ РёР»Рё С†РІРµС‚ РєР°С‚РµРіРѕСЂРёРё.');
       } else {
-        _showSnack('Не удалось добавить категорию.');
+        _showSnack('РќРµ СѓРґР°Р»РѕСЃСЊ РґРѕР±Р°РІРёС‚СЊ РєР°С‚РµРіРѕСЂРёСЋ.');
       }
     } catch (_) {
       if (!mounted) {
         return;
       }
-      _showSnack('Не удалось добавить категорию.');
+      _showSnack('РќРµ СѓРґР°Р»РѕСЃСЊ РґРѕР±Р°РІРёС‚СЊ РєР°С‚РµРіРѕСЂРёСЋ.');
     } finally {
       if (mounted) {
         setState(() => _isSaving = false);
@@ -287,17 +287,17 @@ class _SettingsCalendarScreenState extends State<SettingsCalendarScreen> {
       }
       final status = e.response?.statusCode;
       if (status == 409) {
-        _showSnack('Категория используется в событиях и не может быть удалена.');
+        _showSnack('РљР°С‚РµРіРѕСЂРёСЏ РёСЃРїРѕР»СЊР·СѓРµС‚СЃСЏ РІ СЃРѕР±С‹С‚РёСЏС… Рё РЅРµ РјРѕР¶РµС‚ Р±С‹С‚СЊ СѓРґР°Р»РµРЅР°.');
       } else if (status == 400) {
-        _showSnack('Проверьте название или цвет категории.');
+        _showSnack('РџСЂРѕРІРµСЂСЊС‚Рµ РЅР°Р·РІР°РЅРёРµ РёР»Рё С†РІРµС‚ РєР°С‚РµРіРѕСЂРёРё.');
       } else {
-        _showSnack('Не удалось обновить категорию.');
+        _showSnack('РќРµ СѓРґР°Р»РѕСЃСЊ РѕР±РЅРѕРІРёС‚СЊ РєР°С‚РµРіРѕСЂРёСЋ.');
       }
     } catch (_) {
       if (!mounted) {
         return;
       }
-      _showSnack('Не удалось обновить категорию.');
+      _showSnack('РќРµ СѓРґР°Р»РѕСЃСЊ РѕР±РЅРѕРІРёС‚СЊ РєР°С‚РµРіРѕСЂРёСЋ.');
     } finally {
       if (mounted) {
         setState(() => _isSaving = false);
@@ -326,27 +326,27 @@ class _SettingsCalendarScreenState extends State<SettingsCalendarScreen> {
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints.tightFor(width: 24, height: 24),
                   splashRadius: 18,
-                  tooltip: 'Назад',
+                  tooltip: 'РќР°Р·Р°Рґ',
                 ),
                 const SizedBox(width: 8),
-                const Text('Календарь', style: SettingsUiTokens.screenTitle),
+                const Text('РљР°Р»РµРЅРґР°СЂСЊ', style: SettingsUiTokens.screenTitle),
               ],
             ),
             const SizedBox(height: 26),
-            const _SectionTitle('Основные настройки'),
+            const _SectionTitle('РћСЃРЅРѕРІРЅС‹Рµ РЅР°СЃС‚СЂРѕР№РєРё'),
             const SizedBox(height: 12),
             _Card(
               child: Column(
                 children: [
                   _ClickableRow(
-                    title: 'День начала недели:',
+                    title: 'Р”РµРЅСЊ РЅР°С‡Р°Р»Р° РЅРµРґРµР»Рё:',
                     trailingText: _weekStartLabel(_weekStartsOn),
                     enabled: !controlsDisabled,
                     onTap: _pickWeekStart,
                   ),
                   const _InnerDivider(),
                   _ClickableRow(
-                    title: 'Часовой пояс:',
+                    title: 'Р§Р°СЃРѕРІРѕР№ РїРѕСЏСЃ:',
                     trailingText: _timezoneLabel(_timezoneIana),
                     enabled: !controlsDisabled,
                     onTap: _pickTimezone,
@@ -359,7 +359,7 @@ class _SettingsCalendarScreenState extends State<SettingsCalendarScreen> {
               child: Column(
                 children: [
                   _SwitchRow(
-                    title: 'Показывать номер недели',
+                    title: 'РџРѕРєР°Р·С‹РІР°С‚СЊ РЅРѕРјРµСЂ РЅРµРґРµР»Рё',
                     muted: false,
                     value: _showWeekNumbers,
                     enabled: !controlsDisabled,
@@ -367,7 +367,7 @@ class _SettingsCalendarScreenState extends State<SettingsCalendarScreen> {
                   ),
                   const SizedBox(height: 12),
                   _SwitchRow(
-                    title: 'Показывать дни недели',
+                    title: 'РџРѕРєР°Р·С‹РІР°С‚СЊ РґРЅРё РЅРµРґРµР»Рё',
                     muted: !_showWeekDays,
                     value: _showWeekDays,
                     enabled: !controlsDisabled,
@@ -377,7 +377,7 @@ class _SettingsCalendarScreenState extends State<SettingsCalendarScreen> {
               ),
             ),
             const SizedBox(height: 22),
-            const _SectionTitle('Категории событий'),
+            const _SectionTitle('РљР°С‚РµРіРѕСЂРёРё СЃРѕР±С‹С‚РёР№'),
             const SizedBox(height: 12),
             _Card(
               child: _isLoading
@@ -393,7 +393,7 @@ class _SettingsCalendarScreenState extends State<SettingsCalendarScreen> {
                   ? const Padding(
                       padding: EdgeInsets.symmetric(vertical: 8),
                       child: Text(
-                        'Категории пока не добавлены',
+                        'РљР°С‚РµРіРѕСЂРёРё РїРѕРєР° РЅРµ РґРѕР±Р°РІР»РµРЅС‹',
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w500,
@@ -431,7 +431,7 @@ class _SettingsCalendarScreenState extends State<SettingsCalendarScreen> {
                   ),
                 ),
                 child: const Text(
-                  'Добавить категорию',
+                  'Р”РѕР±Р°РІРёС‚СЊ РєР°С‚РµРіРѕСЂРёСЋ',
                   style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
                 ),
               ),
@@ -439,12 +439,20 @@ class _SettingsCalendarScreenState extends State<SettingsCalendarScreen> {
             if (_error != null)
               Padding(
                 padding: const EdgeInsets.only(top: 12),
-                child: Text(
-                  _error!,
-                  style: const TextStyle(
-                    color: Color(0xFFB42318),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF3F3F3),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    _error!,
+                    style: const TextStyle(
+                      color: SettingsUiTokens.mutedText,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ),
@@ -550,7 +558,7 @@ class _SettingsCalendarScreenState extends State<SettingsCalendarScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      initial == null ? 'Новая категория' : 'Редактирование',
+                      initial == null ? 'РќРѕРІР°СЏ РєР°С‚РµРіРѕСЂРёСЏ' : 'Р РµРґР°РєС‚РёСЂРѕРІР°РЅРёРµ',
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
@@ -560,10 +568,26 @@ class _SettingsCalendarScreenState extends State<SettingsCalendarScreen> {
                     const SizedBox(height: 12),
                     TextField(
                       controller: titleController,
-                      decoration: const InputDecoration(
+                      cursorColor: SettingsUiTokens.accentBlue,
+                      decoration: InputDecoration(
                         labelText: 'Название',
-                        border: OutlineInputBorder(),
                         isDense: true,
+                        labelStyle: const TextStyle(color: SettingsUiTokens.mutedText),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: const BorderSide(color: SettingsUiTokens.divider),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: const BorderSide(
+                            color: SettingsUiTokens.accentBlue,
+                            width: 1.5,
+                          ),
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: const BorderSide(color: SettingsUiTokens.divider),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -595,14 +619,17 @@ class _SettingsCalendarScreenState extends State<SettingsCalendarScreen> {
                                 ),
                               );
                             },
-                            child: const Text(
-                              'Удалить',
-                              style: TextStyle(color: Color(0xFFB42318)),
+                            style: TextButton.styleFrom(
+                              foregroundColor: SettingsUiTokens.accentBlue,
                             ),
+                            child: const Text('Удалить'),
                           ),
                         const Spacer(),
                         TextButton(
                           onPressed: () => Navigator.of(context).pop(),
+                          style: TextButton.styleFrom(
+                            foregroundColor: SettingsUiTokens.accentBlue,
+                          ),
                           child: const Text('Отмена'),
                         ),
                         const SizedBox(width: 6),
@@ -622,6 +649,7 @@ class _SettingsCalendarScreenState extends State<SettingsCalendarScreen> {
                           },
                           style: FilledButton.styleFrom(
                             backgroundColor: SettingsUiTokens.accentBlue,
+                            foregroundColor: Colors.white,
                           ),
                           child: Text(initial == null ? 'Добавить' : 'Сохранить'),
                         ),
@@ -635,7 +663,6 @@ class _SettingsCalendarScreenState extends State<SettingsCalendarScreen> {
         );
       },
     );
-    titleController.dispose();
     return result;
   }
 
@@ -651,12 +678,12 @@ class _SettingsCalendarScreenState extends State<SettingsCalendarScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               const Text(
-                'Удалить категорию?',
+                'РЈРґР°Р»РёС‚СЊ РєР°С‚РµРіРѕСЂРёСЋ?',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 10),
               const Text(
-                'Категория будет удалена, если не используется в событиях.',
+                'РљР°С‚РµРіРѕСЂРёСЏ Р±СѓРґРµС‚ СѓРґР°Р»РµРЅР°, РµСЃР»Рё РЅРµ РёСЃРїРѕР»СЊР·СѓРµС‚СЃСЏ РІ СЃРѕР±С‹С‚РёСЏС….',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 13,
@@ -670,13 +697,19 @@ class _SettingsCalendarScreenState extends State<SettingsCalendarScreen> {
                   Expanded(
                     child: TextButton(
                       onPressed: () => Navigator.of(context).pop(false),
+                      style: TextButton.styleFrom(
+                        foregroundColor: SettingsUiTokens.accentBlue,
+                      ),
                       child: const Text('Отмена'),
                     ),
                   ),
                   Expanded(
                     child: FilledButton(
                       onPressed: () => Navigator.of(context).pop(true),
-                      style: FilledButton.styleFrom(backgroundColor: const Color(0xFFB42318)),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: SettingsUiTokens.accentBlue,
+                        foregroundColor: Colors.white,
+                      ),
                       child: const Text('Удалить'),
                     ),
                   ),
@@ -703,7 +736,7 @@ class _SettingsCalendarScreenState extends State<SettingsCalendarScreen> {
         return option.label;
       }
     }
-    return 'Понедельник';
+    return 'РџРѕРЅРµРґРµР»СЊРЅРёРє';
   }
 
   String _timezoneLabel(String iana) {
@@ -1087,3 +1120,4 @@ class _CategoryEditorResult {
   final String colorHex;
   final bool deleteRequested;
 }
+

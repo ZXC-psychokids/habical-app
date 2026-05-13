@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../repositories/auth_repository.dart';
 import 'settings_calendar_screen.dart';
 import 'settings_notifications_screen.dart';
+import 'settings_profile_screen.dart';
 import 'settings_ui_tokens.dart';
 
 class SettingsScreen extends StatelessWidget {
@@ -77,7 +78,13 @@ class _SettingsCard extends StatelessWidget {
             trailingBuilder: (isActive) => _Chevron(
               color: isActive ? SettingsUiTokens.accentBlue : const Color(0xFF171717),
             ),
-            onTap: () {},
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const SettingsProfileScreen(),
+                ),
+              );
+            },
           ),
           const _RowDivider(),
           _SettingsRow(
