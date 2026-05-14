@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
+import 'dart:convert';
 
 import 'app_logger.dart';
 import '../services/session_service.dart';
@@ -43,6 +44,7 @@ class ApiClient {
           handler.next(options);
         },
         onResponse: (response, handler) {
+          response.data = _normalizePayload(response.data);
           final request = response.requestOptions;
           AppLogger.i(
             'HTTP RESPONSE ${request.method.toUpperCase()} ${request.uri}',
@@ -52,6 +54,10 @@ class ApiClient {
           handler.next(response);
         },
         onError: (error, handler) {
+          final response = error.response;
+          if (response != null) {
+            response.data = _normalizePayload(response.data);
+          }
           final request = error.requestOptions;
           AppLogger.e(
             'HTTP ERROR ${request.method.toUpperCase()} ${request.uri}\n'
@@ -69,6 +75,64 @@ class ApiClient {
 
   final SessionService? _sessionService;
   final Dio dio;
+
+  dynamic _normalizePayload(dynamic value) {
+    if (value is Map) {
+      return value.map((key, item) => MapEntry(key, _normalizePayload(item)));
+    }
+    if (value is List) {
+      return value.map(_normalizePayload).toList(growable: false);
+    }
+    if (value is String) {
+      return _normalizeString(value);
+    }
+    return value;
+  }
+
+  String _normalizeString(String raw) {
+    var current = raw;
+    if (current.trim().isEmpty) {
+      return raw;
+    }
+
+    for (var i = 0; i < 3; i++) {
+      if (!_looksMojibake(current)) {
+        break;
+      }
+      try {
+        final decoded = utf8.decode(latin1.encode(current));
+        if (decoded == current) {
+          break;
+        }
+        current = decoded;
+      } catch (_) {
+        break;
+      }
+    }
+
+    if (_looksMojibake(current)) {
+      try {
+        final bytes = current.codeUnits
+            .map((unit) => unit & 0xFF)
+            .toList(growable: false);
+        final decoded = utf8.decode(bytes, allowMalformed: true);
+        if (decoded.trim().isNotEmpty) {
+          current = decoded;
+        }
+      } catch (_) {}
+    }
+
+    return current;
+  }
+
+  bool _looksMojibake(String text) {
+    if (text.isEmpty) {
+      return false;
+    }
+    final hasBrokenCyr = text.contains('Р') || text.contains('Ð') || text.contains('Ñ');
+    final hasPairNoise = text.contains('С') || text.contains('Ѓ') || text.contains('Ў');
+    return hasBrokenCyr && hasPairNoise;
+  }
 
   static String _defaultBaseUrl() {
     const fromEnv = String.fromEnvironment('API_BASE_URL');
