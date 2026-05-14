@@ -4,7 +4,6 @@ import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../repositories/calendar_repository.dart';
-import '../../repositories/settings_repository.dart';
 import 'settings_ui_tokens.dart';
 
 class SettingsCalendarScreen extends StatefulWidget {
@@ -18,64 +17,27 @@ class _SettingsCalendarScreenState extends State<SettingsCalendarScreen> {
   static const _prefsShowWeekNumbersKey = 'settings.calendar.showWeekNumbers';
   static const _prefsShowWeekDaysKey = 'settings.calendar.showWeekDays';
 
-  static const List<_WeekStartOption> _weekStartOptions = [
-    _WeekStartOption(value: 1, label: '\u041f\u043e\u043d\u0435\u0434\u0435\u043b\u044c\u043d\u0438\u043a'),
-    _WeekStartOption(value: 7, label: '\u0412\u043e\u0441\u043a\u0440\u0435\u0441\u0435\u043d\u044c\u0435'),
-  ];
-
-  static const List<_TimezoneOption> _timezoneOptions = [
-    _TimezoneOption(label: 'GMT-12', iana: 'Etc/GMT+12'),
-    _TimezoneOption(label: 'GMT-11', iana: 'Pacific/Pago_Pago'),
-    _TimezoneOption(label: 'GMT-10', iana: 'Pacific/Honolulu'),
-    _TimezoneOption(label: 'GMT-9', iana: 'America/Anchorage'),
-    _TimezoneOption(label: 'GMT-8', iana: 'America/Los_Angeles'),
-    _TimezoneOption(label: 'GMT-7', iana: 'America/Denver'),
-    _TimezoneOption(label: 'GMT-6', iana: 'America/Chicago'),
-    _TimezoneOption(label: 'GMT-5', iana: 'America/New_York'),
-    _TimezoneOption(label: 'GMT-4', iana: 'America/Halifax'),
-    _TimezoneOption(label: 'GMT-3', iana: 'America/Sao_Paulo'),
-    _TimezoneOption(label: 'GMT-2', iana: 'Atlantic/South_Georgia'),
-    _TimezoneOption(label: 'GMT-1', iana: 'Atlantic/Azores'),
-    _TimezoneOption(label: 'GMT+0', iana: 'Europe/London'),
-    _TimezoneOption(label: 'GMT+1', iana: 'Europe/Berlin'),
-    _TimezoneOption(label: 'GMT+1', iana: 'Europe/Warsaw'),
-    _TimezoneOption(label: 'GMT+2', iana: 'Europe/Kyiv'),
-    _TimezoneOption(label: 'GMT+3', iana: 'Europe/Moscow'),
-    _TimezoneOption(label: 'GMT+4', iana: 'Asia/Dubai'),
-    _TimezoneOption(label: 'GMT+5', iana: 'Asia/Karachi'),
-    _TimezoneOption(label: 'GMT+6', iana: 'Asia/Dhaka'),
-    _TimezoneOption(label: 'GMT+7', iana: 'Asia/Bangkok'),
-    _TimezoneOption(label: 'GMT+8', iana: 'Asia/Shanghai'),
-    _TimezoneOption(label: 'GMT+9', iana: 'Asia/Tokyo'),
-    _TimezoneOption(label: 'GMT+10', iana: 'Australia/Sydney'),
-    _TimezoneOption(label: 'GMT+11', iana: 'Pacific/Noumea'),
-    _TimezoneOption(label: 'GMT+12', iana: 'Pacific/Auckland'),
-    _TimezoneOption(label: 'GMT+13', iana: 'Pacific/Apia'),
-    _TimezoneOption(label: 'GMT+14', iana: 'Pacific/Kiritimati'),
-  ];
-
-  static const List<String> _categoryPalette = [
-    '#BD2BFF',
-    '#FFA62B',
-    '#41D9E2',
-    '#5AA9E6',
-    '#4CAF50',
-    '#FF6B6B',
-    '#AF52DE',
-    '#FF9F0A',
+  static const List<_CategoryColorOption> _categoryPalette = [
+    _CategoryColorOption(hex: '#FF6B6B', name: '\u041a\u0440\u0430\u0441\u043d\u044b\u0439'),
+    _CategoryColorOption(hex: '#FFA62B', name: '\u041e\u0440\u0430\u043d\u0436\u0435\u0432\u044b\u0439'),
+    _CategoryColorOption(hex: '#FACC15', name: '\u0416\u0435\u043b\u0442\u044b\u0439'),
+    _CategoryColorOption(hex: '#4CAF50', name: '\u0417\u0435\u043b\u0435\u043d\u044b\u0439'),
+    _CategoryColorOption(hex: '#41D9E2', name: '\u0411\u0438\u0440\u044e\u0437\u043e\u0432\u044b\u0439'),
+    _CategoryColorOption(hex: '#5AA9E6', name: '\u0413\u043e\u043b\u0443\u0431\u043e\u0439'),
+    _CategoryColorOption(hex: '#1D4ED8', name: '\u0421\u0438\u043d\u0438\u0439'),
+    _CategoryColorOption(hex: '#BD2BFF', name: '\u0424\u0438\u043e\u043b\u0435\u0442\u043e\u0432\u044b\u0439'),
+    _CategoryColorOption(hex: '#8B5E3C', name: '\u041a\u043e\u0440\u0438\u0447\u043d\u0435\u0432\u044b\u0439'),
+    _CategoryColorOption(hex: '#64748B', name: '\u0421\u0435\u0440\u043e-\u0441\u0438\u043d\u0438\u0439'),
   ];
 
   bool _isLoading = true;
   bool _isSaving = false;
   String? _error;
 
-  int _weekStartsOn = 1;
-  String _timezoneIana = 'Europe/Moscow';
   bool _showWeekNumbers = true;
   bool _showWeekDays = false;
   List<EventCategoryItem> _categories = const [];
 
-  SettingsRepository get _settingsRepository => context.read<SettingsRepository>();
   CalendarRepository get _calendarRepository => context.read<CalendarRepository>();
 
   @override
@@ -91,19 +53,15 @@ class _SettingsCalendarScreenState extends State<SettingsCalendarScreen> {
     });
     try {
       final results = await Future.wait([
-        _settingsRepository.fetchProfileAndSettings(),
         _calendarRepository.fetchCategories(),
         SharedPreferences.getInstance(),
       ]);
-      final settingsData = results[0] as ProfileAndSettings;
-      final categories = results[1] as List<EventCategoryItem>;
-      final prefs = results[2] as SharedPreferences;
+      final categories = results[0] as List<EventCategoryItem>;
+      final prefs = results[1] as SharedPreferences;
       if (!mounted) {
         return;
       }
       setState(() {
-        _weekStartsOn = _normalizeWeekStart(settingsData.settings.weekStartsOn);
-        _timezoneIana = settingsData.settings.timezone;
         _showWeekNumbers = prefs.getBool(_prefsShowWeekNumbersKey) ?? true;
         _showWeekDays = prefs.getBool(_prefsShowWeekDaysKey) ?? false;
         _categories = categories;
@@ -118,88 +76,6 @@ class _SettingsCalendarScreenState extends State<SettingsCalendarScreen> {
         _isLoading = false;
       });
     }
-  }
-
-  Future<void> _saveCalendarSettings({
-    int? weekStartsOn,
-    String? timezoneIana,
-  }) async {
-    setState(() {
-      _isSaving = true;
-      _error = null;
-    });
-    try {
-      final updated = await _settingsRepository.updateCalendarSettings(
-        weekStartsOn: weekStartsOn,
-        timezone: timezoneIana,
-      );
-      if (!mounted) {
-        return;
-      }
-      setState(() {
-        _weekStartsOn = _normalizeWeekStart(updated.weekStartsOn);
-        _timezoneIana = updated.timezone;
-      });
-    } on DioException catch (e) {
-      if (!mounted) {
-        return;
-      }
-      setState(() {
-        _error = e.response?.statusCode == 400
-            ? '\u041d\u0435\u043a\u043e\u0440\u0440\u0435\u043a\u0442\u043d\u043e\u0435 \u0437\u043d\u0430\u0447\u0435\u043d\u0438\u0435 \u0434\u043b\u044f \u043d\u0430\u0441\u0442\u0440\u043e\u0435\u043a \u043a\u0430\u043b\u0435\u043d\u0434\u0430\u0440\u044f.'
-            : '\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u0441\u043e\u0445\u0440\u0430\u043d\u0438\u0442\u044c \u043d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438 \u043a\u0430\u043b\u0435\u043d\u0434\u0430\u0440\u044f.';
-      });
-    } catch (_) {
-      if (!mounted) {
-        return;
-      }
-      setState(() {
-        _error = '\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u0441\u043e\u0445\u0440\u0430\u043d\u0438\u0442\u044c \u043d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438 \u043a\u0430\u043b\u0435\u043d\u0434\u0430\u0440\u044f.';
-      });
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isSaving = false;
-        });
-      }
-    }
-  }
-
-  Future<void> _pickWeekStart() async {
-    if (_isSaving || _isLoading) {
-      return;
-    }
-    final selected = await _showSelectionDialog<int>(
-      title: '\u0414\u0435\u043d\u044c \u043d\u0430\u0447\u0430\u043b\u0430 \u043d\u0435\u0434\u0435\u043b\u0438',
-      items: _weekStartOptions
-          .map((option) => _SelectionItem<int>(value: option.value, label: option.label))
-          .toList(growable: false),
-      selectedValue: _weekStartsOn,
-    );
-    if (selected == null || selected == _weekStartsOn) {
-      return;
-    }
-    setState(() => _weekStartsOn = selected);
-    await _saveCalendarSettings(weekStartsOn: selected);
-  }
-
-  Future<void> _pickTimezone() async {
-    if (_isSaving || _isLoading) {
-      return;
-    }
-    final selected = await _showSelectionDialog<String>(
-      title: '\u0427\u0430\u0441\u043e\u0432\u043e\u0439 \u043f\u043e\u044f\u0441',
-      items: _timezoneOptions
-          .map((option) => _SelectionItem<String>(value: option.iana, label: option.label))
-          .toList(growable: false),
-      selectedValue: _timezoneIana,
-      maxHeight: 420,
-    );
-    if (selected == null || selected == _timezoneIana) {
-      return;
-    }
-    setState(() => _timezoneIana = selected);
-    await _saveCalendarSettings(timezoneIana: selected);
   }
 
   Future<void> _toggleShowWeekNumbers(bool value) async {
@@ -341,28 +217,6 @@ class _SettingsCalendarScreenState extends State<SettingsCalendarScreen> {
               ],
             ),
             const SizedBox(height: 26),
-            const _SectionTitle('\u041e\u0441\u043d\u043e\u0432\u043d\u044b\u0435 \u043d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438'),
-            const SizedBox(height: 12),
-            _Card(
-              child: Column(
-                children: [
-                  _ClickableRow(
-                    title: '\u0414\u0435\u043d\u044c \u043d\u0430\u0447\u0430\u043b\u0430 \u043d\u0435\u0434\u0435\u043b\u0438:',
-                    trailingText: _weekStartLabel(_weekStartsOn),
-                    enabled: !controlsDisabled,
-                    onTap: _pickWeekStart,
-                  ),
-                  const _InnerDivider(),
-                  _ClickableRow(
-                    title: '\u0427\u0430\u0441\u043e\u0432\u043e\u0439 \u043f\u043e\u044f\u0441:',
-                    trailingText: _timezoneLabel(_timezoneIana),
-                    enabled: !controlsDisabled,
-                    onTap: _pickTimezone,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
             _Card(
               child: Column(
                 children: [
@@ -414,7 +268,7 @@ class _SettingsCalendarScreenState extends State<SettingsCalendarScreen> {
                         for (var i = 0; i < _categories.length; i++) ...[
                           _CategoryRow(
                             title: _categories[i].title,
-                            colorName: _categories[i].color.toUpperCase(),
+                            colorName: _colorNameByHex(_categories[i].color),
                             dotColor: _parseHexColor(_categories[i].color),
                             enabled: !controlsDisabled,
                             onTap: () => _editCategory(_categories[i]),
@@ -481,85 +335,11 @@ class _SettingsCalendarScreenState extends State<SettingsCalendarScreen> {
     );
   }
 
-  Future<T?> _showSelectionDialog<T>({
-    required String title,
-    required List<_SelectionItem<T>> items,
-    required T selectedValue,
-    double maxHeight = 320,
-  }) {
-    return showDialog<T>(
-      context: context,
-      builder: (context) {
-        return Dialog(
-          backgroundColor: SettingsUiTokens.cardBackground,
-          shape: const RoundedRectangleBorder(borderRadius: SettingsUiTokens.cardRadius),
-          child: ConstrainedBox(
-            constraints: BoxConstraints(maxHeight: maxHeight),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: SettingsUiTokens.primaryText,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  const Divider(
-                    height: 1,
-                    thickness: 1,
-                    color: SettingsUiTokens.divider,
-                  ),
-                  const SizedBox(height: 6),
-                  Flexible(
-                    child: ListView.builder(
-                      shrinkWrap: true,
-                      itemCount: items.length,
-                      itemBuilder: (context, index) {
-                        final item = items[index];
-                        final isSelected = item.value == selectedValue;
-                        return ListTile(
-                          dense: true,
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 4),
-                          title: Text(
-                            item.label,
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
-                              color: isSelected
-                                  ? SettingsUiTokens.accentBlue
-                                  : SettingsUiTokens.primaryText,
-                            ),
-                          ),
-                          trailing: isSelected
-                              ? const Icon(
-                                  Icons.check_rounded,
-                                  color: SettingsUiTokens.accentBlue,
-                                )
-                              : null,
-                          onTap: () => Navigator.of(context).pop(item.value),
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
   Future<_CategoryEditorResult?> _showCategoryEditorDialog({
     EventCategoryItem? initial,
   }) async {
     final titleController = TextEditingController(text: initial?.title ?? '');
-    var selectedColor = (initial?.color ?? _categoryPalette.first).toUpperCase();
+    var selectedColor = _normalizeToPaletteColorHex(initial?.color);
 
     final result = await showDialog<_CategoryEditorResult>(
       context: context,
@@ -618,10 +398,11 @@ class _SettingsCalendarScreenState extends State<SettingsCalendarScreen> {
                       children: [
                         for (final color in _categoryPalette)
                           _ColorDotButton(
-                            color: _parseHexColor(color),
-                            selected: selectedColor == color,
+                            color: _parseHexColor(color.hex),
+                            selected: selectedColor == color.hex,
+                            tooltip: color.name,
                             onTap: () => setDialogState(() {
-                              selectedColor = color;
+                              selectedColor = color.hex;
                             }),
                           ),
                       ],
@@ -749,44 +530,27 @@ class _SettingsCalendarScreenState extends State<SettingsCalendarScreen> {
     );
   }
 
-  int _normalizeWeekStart(int raw) => raw == 7 ? 7 : 1;
-
-  String _weekStartLabel(int value) {
-    for (final option in _weekStartOptions) {
-      if (option.value == value) {
-        return option.label;
+  String _normalizeToPaletteColorHex(String? rawHex) {
+    if (rawHex == null) {
+      return _categoryPalette.first.hex;
+    }
+    final normalized = rawHex.trim().toUpperCase();
+    for (final option in _categoryPalette) {
+      if (option.hex == normalized) {
+        return option.hex;
       }
     }
-    return '\u041f\u043e\u043d\u0435\u0434\u0435\u043b\u044c\u043d\u0438\u043a';
+    return _categoryPalette.first.hex;
   }
 
-  String _timezoneLabel(String iana) {
-    for (final option in _timezoneOptions) {
-      if (option.iana == iana) {
-        return option.label;
+  String _colorNameByHex(String rawHex) {
+    final normalized = rawHex.trim().toUpperCase();
+    for (final option in _categoryPalette) {
+      if (option.hex == normalized) {
+        return option.name;
       }
     }
-    return _gmtLabelFromIana(iana) ?? 'GMT+0';
-  }
-
-  String? _gmtLabelFromIana(String iana) {
-    final upper = iana.toUpperCase();
-    if (upper.startsWith('GMT') || upper.startsWith('UTC')) {
-      final normalized = upper.replaceAll('UTC', 'GMT').replaceAll(' ', '');
-      if (normalized == 'GMT') {
-        return 'GMT+0';
-      }
-      final signIndex = normalized.indexOf(RegExp(r'[+-]'));
-      if (signIndex > 0 && signIndex < normalized.length - 1) {
-        final sign = normalized[signIndex];
-        final rawNumber = normalized.substring(signIndex + 1);
-        final number = int.tryParse(rawNumber);
-        if (number != null) {
-          return 'GMT$sign$number';
-        }
-      }
-    }
-    return null;
+    return normalized;
   }
 
   static Color _parseHexColor(String hex) {
@@ -833,75 +597,6 @@ class _SectionTitle extends StatelessWidget {
         color: SettingsUiTokens.accentBlue,
         fontSize: 16,
         fontWeight: FontWeight.w500,
-      ),
-    );
-  }
-}
-
-class _ClickableRow extends StatelessWidget {
-  const _ClickableRow({
-    required this.title,
-    required this.trailingText,
-    required this.onTap,
-    required this.enabled,
-  });
-
-  final String title;
-  final String trailingText;
-  final VoidCallback onTap;
-  final bool enabled;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: enabled ? onTap : null,
-      borderRadius: BorderRadius.circular(10),
-      child: SizedBox(
-        height: 34,
-        child: Row(
-          children: [
-            Expanded(
-              child: Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: SettingsUiTokens.primaryText,
-                ),
-              ),
-            ),
-            Text(
-              trailingText,
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: SettingsUiTokens.mutedText,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Icon(
-              Icons.arrow_forward_ios_rounded,
-              size: 14,
-              color: enabled ? SettingsUiTokens.primaryText : SettingsUiTokens.mutedText,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _InnerDivider extends StatelessWidget {
-  const _InnerDivider();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.symmetric(vertical: 4),
-      child: Divider(
-        height: 1,
-        thickness: 1,
-        color: SettingsUiTokens.divider,
       ),
     );
   }
@@ -1066,33 +761,38 @@ class _ColorDotButton extends StatelessWidget {
   const _ColorDotButton({
     required this.color,
     required this.selected,
+    required this.tooltip,
     required this.onTap,
   });
 
   final Color color;
   final bool selected;
+  final String tooltip;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(30),
-      child: Container(
-        width: 28,
-        height: 28,
-        padding: const EdgeInsets.all(2),
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          border: Border.all(
-            color: selected ? SettingsUiTokens.accentBlue : Colors.transparent,
-            width: 2,
-          ),
-        ),
-        child: DecoratedBox(
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(30),
+        child: Container(
+          width: 28,
+          height: 28,
+          padding: const EdgeInsets.all(2),
           decoration: BoxDecoration(
-            color: color,
             shape: BoxShape.circle,
+            border: Border.all(
+              color: selected ? SettingsUiTokens.accentBlue : Colors.transparent,
+              width: 2,
+            ),
+          ),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: color,
+              shape: BoxShape.circle,
+            ),
           ),
         ),
       ),
@@ -1100,34 +800,14 @@ class _ColorDotButton extends StatelessWidget {
   }
 }
 
-class _WeekStartOption {
-  const _WeekStartOption({
-    required this.value,
-    required this.label,
+class _CategoryColorOption {
+  const _CategoryColorOption({
+    required this.hex,
+    required this.name,
   });
 
-  final int value;
-  final String label;
-}
-
-class _TimezoneOption {
-  const _TimezoneOption({
-    required this.label,
-    required this.iana,
-  });
-
-  final String label;
-  final String iana;
-}
-
-class _SelectionItem<T> {
-  const _SelectionItem({
-    required this.value,
-    required this.label,
-  });
-
-  final T value;
-  final String label;
+  final String hex;
+  final String name;
 }
 
 class _CategoryEditorResult {

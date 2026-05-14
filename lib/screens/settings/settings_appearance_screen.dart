@@ -14,9 +14,6 @@ class SettingsAppearanceScreen extends StatefulWidget {
 class _SettingsAppearanceScreenState extends State<SettingsAppearanceScreen> {
   static const String _tBack = '\u041d\u0430\u0437\u0430\u0434';
   static const String _tTitle = '\u0412\u043d\u0435\u0448\u043d\u0438\u0439 \u0432\u0438\u0434';
-  static const String _tTheme = '\u0422\u0435\u043c\u0430';
-  static const String _tNightTheme =
-      '\u041f\u0435\u0440\u0435\u043a\u043b\u044e\u0447\u0438\u0442\u044c \u043d\u0430 \u043d\u043e\u0447\u043d\u0443\u044e \u0442\u0435\u043c\u0443';
   static const String _tFeed = '\u041b\u0435\u043d\u0442\u0430 \u043d\u043e\u0432\u043e\u0441\u0442\u0435\u0439';
   static const String _tStreaks = '\u0421\u0442\u0440\u0438\u043a\u0438';
   static const String _tNewHabits = '\u041d\u043e\u0432\u044b\u0435 \u043f\u0440\u0438\u0432\u044b\u0447\u043a\u0438';
@@ -182,45 +179,6 @@ class _SettingsAppearanceScreenState extends State<SettingsAppearanceScreen> {
                       ),
                       const SizedBox(height: 34),
                       const Text(
-                        _tTheme,
-                        style: TextStyle(
-                          fontSize: 36 / 1.56,
-                          height: 1.08,
-                          fontWeight: FontWeight.w500,
-                          color: SettingsUiTokens.accentBlue,
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                      Container(
-                        width: double.infinity,
-                        decoration: const BoxDecoration(
-                          color: SettingsUiTokens.cardBackground,
-                          borderRadius: SettingsUiTokens.cardRadius,
-                          boxShadow: [SettingsUiTokens.cardShadow],
-                        ),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 14,
-                        ),
-                        child: Row(
-                          children: const [
-                            _ThemeIcon(),
-                            SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                _tNightTheme,
-                                style: TextStyle(
-                                  fontSize: 32 / 2.45,
-                                  fontWeight: FontWeight.w500,
-                                  color: SettingsUiTokens.primaryText,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 34),
-                      const Text(
                         _tFeed,
                         style: TextStyle(
                           fontSize: 36 / 1.56,
@@ -312,27 +270,6 @@ class _SettingsAppearanceScreenState extends State<SettingsAppearanceScreen> {
             );
           },
         ),
-      ),
-    );
-  }
-}
-
-class _ThemeIcon extends StatelessWidget {
-  const _ThemeIcon();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 30,
-      height: 30,
-      decoration: const BoxDecoration(
-        color: SettingsUiTokens.accentBlue,
-        borderRadius: SettingsUiTokens.iconRadius,
-      ),
-      child: const Icon(
-        Icons.nightlight_round,
-        size: 17,
-        color: Colors.white,
       ),
     );
   }

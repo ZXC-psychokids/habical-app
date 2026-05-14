@@ -60,9 +60,34 @@ class _HabicalAppState extends State<HabicalApp> {
         debugShowCheckedModeBanner: false,
         title: 'Habical',
         theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(seedColor: Colors.black),
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: const Color(0xFF0277BC),
+            brightness: Brightness.light,
+          ),
           scaffoldBackgroundColor: const Color(0xFFF2F2F2),
           fontFamily: 'Cera Pro',
+          textSelectionTheme: const TextSelectionThemeData(
+            cursorColor: Color(0xFF0277BC),
+            selectionColor: Color(0x3321A1F1),
+            selectionHandleColor: Color(0xFF0277BC),
+          ),
+          progressIndicatorTheme: const ProgressIndicatorThemeData(
+            color: Color(0xFF0277BC),
+          ),
+          snackBarTheme: SnackBarThemeData(
+            backgroundColor: const Color(0xFFF3F3F3),
+            contentTextStyle: const TextStyle(
+              color: Color(0xFF1C1C1E),
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
+            behavior: SnackBarBehavior.floating,
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+              side: const BorderSide(color: Color(0xFFB5B5B5)),
+            ),
+          ),
         ),
         home: Builder(
           builder: (context) => AuthGateScreen(
