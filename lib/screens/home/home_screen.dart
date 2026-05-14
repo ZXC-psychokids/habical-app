@@ -513,6 +513,11 @@ class _TaskRow extends StatelessWidget {
       return _hexToColor(task.habit!.color);
     }
     if (task.event != null) {
+      for (final event in events) {
+        if (event.id == task.event!.id) {
+          return _hexToColor(event.categoryColor);
+        }
+      }
       return const Color(0xFF5AA9E6);
     }
     if (task.manualColor != null) {
@@ -647,17 +652,21 @@ class _FeedCard extends StatelessWidget {
     return InkWell(
       onTap: () {
         try {
-          final friendsRepository = RepositoryProvider.of<FriendsRepository>(
-            context,
-          );
-          Navigator.of(context).push(
-            MaterialPageRoute<void>(
-              builder: (_) => FriendPageScreen(
-                friendUserId: item.actor.id,
-                friendsRepository: friendsRepository,
+            final friendsRepository = RepositoryProvider.of<FriendsRepository>(
+              context,
+            );
+            final navigationCubit = context.read<NavigationCubit>();
+            Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => BlocProvider.value(
+                  value: navigationCubit,
+                  child: FriendPageScreen(
+                    friendUserId: item.actor.id,
+                    friendsRepository: friendsRepository,
+                  ),
+                ),
               ),
-            ),
-          );
+            );
         } catch (_) {}
       },
       borderRadius: BorderRadius.circular(15),
@@ -806,6 +815,9 @@ class _TaskEditDialog extends StatefulWidget {
 }
 
 class _TaskEditDialogState extends State<_TaskEditDialog> {
+  static const _unlinkEventSentinel = '__none__';
+  static const double _taskColorDotSize = 32;
+  static const double _taskColorSpacing = 12;
   late final TextEditingController titleController;
   late String selectedColor;
   String? selectedEventId;
@@ -875,7 +887,7 @@ class _TaskEditDialogState extends State<_TaskEditDialog> {
                       fontWeight: FontWeight.w600,
                       letterSpacing: -0.2,
                     ),
-                    maxLines: 2,
+                    maxLines: 1,
                   ),
                 ),
               ],
@@ -898,30 +910,41 @@ class _TaskEditDialogState extends State<_TaskEditDialog> {
                 physics: const NeverScrollableScrollPhysics(),
                 itemCount: _palette14.length,
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 7,
-                  mainAxisSpacing: 10,
-                  crossAxisSpacing: 10,
-                  childAspectRatio: 1,
+                  crossAxisCount: 5,
+                  mainAxisSpacing: _taskColorSpacing,
+                  crossAxisSpacing: _taskColorSpacing,
+                  mainAxisExtent: _taskColorDotSize,
                 ),
                 itemBuilder: (context, index) {
                   final colorHex = _palette14[index];
                   final selected = selectedColor == colorHex;
-
-                  return InkWell(
-                    onTap: () => setState(() {
-                      selectedColor = colorHex;
-                      colorWasChangedByUser = true;
-                    }),
-                    borderRadius: BorderRadius.circular(999),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: _hexToColor(colorHex),
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: selected
-                              ? const Color(0xFF0277BC)
-                              : Colors.transparent,
-                          width: 3,
+                  return Center(
+                    child: Material(
+                      color: Colors.transparent,
+                      shape: const CircleBorder(),
+                      child: InkWell(
+                        onTap: () => setState(() {
+                          selectedColor = colorHex;
+                          colorWasChangedByUser = true;
+                        }),
+                        customBorder: const CircleBorder(),
+                        splashColor: const Color(0x220277BC),
+                        hoverColor: const Color(0x140277BC),
+                        child: SizedBox(
+                          width: _taskColorDotSize,
+                          height: _taskColorDotSize,
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              color: _hexToColor(colorHex),
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: selected
+                                    ? const Color(0xFF0277BC)
+                                    : Colors.transparent,
+                                width: 2.5,
+                              ),
+                            ),
+                          ),
                         ),
                       ),
                     ),
@@ -953,13 +976,7 @@ class _TaskEditDialogState extends State<_TaskEditDialog> {
               ),
               const SizedBox(height: 8),
               InkWell(
-                onTap: () {
-                  Navigator.of(context).pop();
-                  final cubit =
-                      widget.navigationCubit ??
-                      context.read<NavigationCubit>();
-                  cubit.openCalendarDayTab();
-                },
+                onTap: () => _pickEvent(context),
                 borderRadius: BorderRadius.circular(8),
                 child: Container(
                   padding: const EdgeInsets.symmetric(
@@ -1077,6 +1094,9 @@ class _TaskEditDialogState extends State<_TaskEditDialog> {
                   children: [
                     TextButton(
                       onPressed: () => Navigator.of(context).pop(),
+                      style: TextButton.styleFrom(
+                        foregroundColor: const Color(0xFF0277BC),
+                      ),
                       child: const Text('Отмена'),
                     ),
                     const SizedBox(width: 8),
@@ -1130,6 +1150,124 @@ class _TaskEditDialogState extends State<_TaskEditDialog> {
     return 'привязана';
   }
 
+  Future<void> _pickEvent(BuildContext context) async {
+    final currentTaskId = widget.task?.id;
+    final availableEvents = widget.events.where((item) {
+      final linkedTaskId = item.task?.id;
+      if (linkedTaskId == null) {
+        return true;
+      }
+      return currentTaskId != null && linkedTaskId == currentTaskId;
+    }).toList(growable: false)
+      ..sort((a, b) => a.startsAt.compareTo(b.startsAt));
+
+    final selected = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(15)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Событие',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF0277BC),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                const Divider(height: 1, color: Color(0xFFB5B5B5)),
+                const SizedBox(height: 8),
+                ListTile(
+                  dense: true,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+                  title: const Text(
+                    'Не привязано',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF000000),
+                    ),
+                  ),
+                  trailing: selectedEventId == null
+                      ? const Icon(Icons.check_rounded, color: Color(0xFF0277BC))
+                      : null,
+                  onTap: () => Navigator.of(context).pop(_unlinkEventSentinel),
+                ),
+                if (availableEvents.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.fromLTRB(4, 8, 4, 2),
+                    child: Text(
+                      'Нет доступных событий на этот день',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xFFABABAB),
+                      ),
+                    ),
+                  )
+                else
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 320),
+                    child: ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: availableEvents.length,
+                      itemBuilder: (context, index) {
+                        final item = availableEvents[index];
+                        final selected = selectedEventId == item.id;
+                        return ListTile(
+                          dense: true,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+                          title: Text(
+                            item.title,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF000000),
+                            ),
+                          ),
+                          subtitle: Text(
+                            _eventTimeRange(item.startsAt, item.endsAt),
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Color(0xFFABABAB),
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          trailing: selected
+                              ? const Icon(
+                                  Icons.check_rounded,
+                                  color: Color(0xFF0277BC),
+                                )
+                              : null,
+                          onTap: () => Navigator.of(context).pop(item.id),
+                        );
+                      },
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    if (selected == null || !mounted) {
+      return;
+    }
+    setState(() {
+      selectedEventId = selected == _unlinkEventSentinel ? null : selected;
+    });
+  }
+
   Future<void> _save(BuildContext context) async {
     final trimmedTitle = titleController.text.trim();
     if (trimmedTitle.isEmpty) {
@@ -1159,6 +1297,15 @@ class _TaskEditDialogState extends State<_TaskEditDialog> {
       return;
     }
 
+    final currentEventId = task.event?.id;
+    if (selectedEventId != currentEventId) {
+      if (selectedEventId == null) {
+        await cubit.unlinkTaskFromEvent(task.id);
+      } else {
+        await cubit.linkTaskToEvent(taskId: task.id, eventId: selectedEventId!);
+      }
+    }
+
     final hasTitleChanged = trimmedTitle != task.title;
     final canChangeManualColor = task.habit == null && selectedEventId == null;
     final hasColorChanged =
@@ -1176,36 +1323,27 @@ class _TaskEditDialogState extends State<_TaskEditDialog> {
       );
     }
 
-    final currentEventId = task.event?.id;
-    if (selectedEventId != currentEventId) {
-      if (selectedEventId == null) {
-        await cubit.unlinkTaskFromEvent(task.id);
-      } else {
-        await cubit.linkTaskToEvent(taskId: task.id, eventId: selectedEventId!);
-      }
-    }
-
     if (mounted) {
       Navigator.of(context).pop();
     }
   }
+
+  String _eventTimeRange(DateTime start, DateTime end) {
+    return '${_timeLabel(start)} - ${_timeLabel(end)}';
+  }
 }
 
 const List<String> _palette14 = [
-  '#FF3B30', // red
-  '#0A84FF', // blue
-  '#34C759', // green
-  '#FFD60A', // yellow
-  '#FF9500', // orange
-  '#AF52DE', // violet
-  '#A2845E', // brown
-  '#FF2D55', // pink
-  '#00C7BE', // turquoise
-  '#8E8E93', // gray
-  '#64B5F6', // light blue
-  '#81C784', // light green
-  '#FFB74D', // light orange
-  '#BA68C8', // light violet
+  '#FF6B6B', // red
+  '#FFA62B', // orange
+  '#FACC15', // yellow
+  '#4CAF50', // green
+  '#41D9E2', // turquoise
+  '#5AA9E6', // light blue
+  '#1D4ED8', // blue
+  '#BD2BFF', // violet
+  '#8B5E3C', // brown
+  '#64748B', // gray-blue
 ];
 
 Color _hexToColor(String rawValue) {
