@@ -413,7 +413,7 @@ class ApiCalendarRepository implements CalendarRepository {
     if (value is String) {
       final parsed = DateTime.tryParse(value);
       if (parsed != null) {
-        return parsed;
+        return parsed.toLocal();
       }
     }
     throw StateError('Invalid "$fieldName" field.');

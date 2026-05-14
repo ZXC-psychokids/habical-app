@@ -223,15 +223,32 @@ class ApiHomeRepository implements HomeRepository {
     );
 
     final raw = response.data;
-    if (raw is! Map) {
+    if (raw is Map) {
+      final payload = Map<String, dynamic>.from(raw);
+      try {
+        return _parseTask(payload);
+      } catch (error, stackTrace) {
+        AppLogger.e(
+          'Failed to parse linked HomeTask payload, fallback to GET task. raw=${AppLogger.pretty(payload)}',
+          error,
+          stackTrace,
+        );
+      }
+    } else {
       AppLogger.e(
-        'Failed to parse linked HomeTask payload',
+        'Failed to parse linked HomeTask payload, fallback to GET task.',
         StateError('Invalid linked task payload.'),
         StackTrace.current,
       );
+    }
+
+    // Compatibility fallback for backends that return a short ack payload.
+    final taskResponse = await _apiClient.dio.get('/me/tasks/$taskId');
+    final taskRaw = taskResponse.data;
+    if (taskRaw is! Map) {
       throw StateError('Invalid linked task payload.');
     }
-    return _parseTask(Map<String, dynamic>.from(raw));
+    return _parseTask(Map<String, dynamic>.from(taskRaw));
   }
 
   @override
@@ -396,7 +413,7 @@ class ApiHomeRepository implements HomeRepository {
     if (value is String) {
       final parsed = DateTime.tryParse(value);
       if (parsed != null) {
-        return parsed;
+        return parsed.toLocal();
       }
     }
     throw StateError('Invalid "$field" field.');

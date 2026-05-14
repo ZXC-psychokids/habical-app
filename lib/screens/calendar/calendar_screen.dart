@@ -363,6 +363,20 @@ class _CalendarScreenState extends State<CalendarScreen> {
     if (visibleDays.isEmpty) {
       return;
     }
+    final from = DateTime(
+      visibleDays.first.year,
+      visibleDays.first.month,
+      visibleDays.first.day,
+    );
+    final to = DateTime(
+      visibleDays.last.year,
+      visibleDays.last.month,
+      visibleDays.last.day,
+      23,
+      59,
+      59,
+      999,
+    );
 
     setState(() {
       _isLoadingEvents = true;
@@ -371,8 +385,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
     try {
       final result = await _calendarRepository.fetchEventsInRange(
-        fromInclusive: visibleDays.first,
-        toInclusive: visibleDays.last,
+        fromInclusive: from,
+        toInclusive: to,
       );
       if (!mounted) {
         return;
@@ -459,9 +473,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   DateTime _suggestStartDateTime() {
-    final baseDay = _dateOnly(
-      widget.scale == CalendarScale.month ? _now : _focusDate,
-    );
+    final baseDay = _dateOnly(_focusDate);
     final nowDay = _dateOnly(_now);
     if (baseDay != nowDay) {
       return DateTime(baseDay.year, baseDay.month, baseDay.day, 9, 0);
