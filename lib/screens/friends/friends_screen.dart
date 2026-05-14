@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../cubits/friends/friends_cubit.dart';
 import '../../cubits/friends/friends_state.dart';
+import '../../cubits/navigation/navigation_cubit.dart';
 import '../../models/friend_invite_item.dart';
 import '../../models/friend_list_item.dart';
 import '../../repositories/friends_repository.dart';
@@ -250,11 +251,15 @@ class _FriendsViewState extends State<_FriendsView> {
   }
 
   Future<void> _openFriendPage(BuildContext context, FriendListItem item) async {
+    final navigationCubit = context.read<NavigationCubit>();
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => FriendPageScreen(
-          friendUserId: item.userId,
-          friendsRepository: widget.repository,
+        builder: (_) => BlocProvider.value(
+          value: navigationCubit,
+          child: FriendPageScreen(
+            friendUserId: item.userId,
+            friendsRepository: widget.repository,
+          ),
         ),
       ),
     );
