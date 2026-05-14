@@ -85,7 +85,7 @@ class _HabitsView extends StatelessWidget {
         }
 
         return Scaffold(
-          backgroundColor: const Color(0xFFEDEDED),
+          backgroundColor: Colors.white,
           body: SafeArea(
             child: RefreshIndicator(
               onRefresh: () => context.read<HabitsCubit>().loadHabits(),
@@ -96,9 +96,9 @@ class _HabitsView extends StatelessWidget {
                   const Text(
                     'Привычки',
                     style: TextStyle(
-                      fontSize: 45,
+                      fontSize: 42,
                       fontWeight: FontWeight.w700,
-                      color: Colors.black,
+                      color: Color(0xFF1E1E1E),
                       height: 1,
                       letterSpacing: -0.7,
                     ),
@@ -112,11 +112,10 @@ class _HabitsView extends StatelessWidget {
                   const Text(
                     'Все привычки',
                     style: TextStyle(
-                      fontSize: 34,
+                      fontSize: 24,
                       fontWeight: FontWeight.w700,
-                      color: Colors.black,
-                      height: 1,
-                      letterSpacing: -0.5,
+                      letterSpacing: -0.3,
+                      color: Color(0xFF111111),
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -146,12 +145,12 @@ class _HabitsView extends StatelessWidget {
                           ? null
                           : () => _openCreateHabit(context),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFF3F3F3),
-                        foregroundColor: Colors.black,
+                        backgroundColor: Colors.white,
+                        foregroundColor: const Color(0xFF1C1C1E),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(15),
                         ),
-                        side: const BorderSide(color: Color(0x15000000)),
+                        side: const BorderSide(color: Color(0xFFE5E5EA)),
                         elevation: 0,
                       ),
                       child: const Text(
@@ -198,13 +197,13 @@ class _MiniHabitsCalendarCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
       decoration: BoxDecoration(
-        color: const Color(0xFFF3F3F3),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: const Color(0x14000000)),
+        border: Border.all(color: const Color(0xFFE5E5EA)),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x10000000),
-            blurRadius: 8,
+            color: Color(0x08000000),
+            blurRadius: 3,
             offset: Offset(0, 1),
           ),
         ],
@@ -449,7 +448,7 @@ class _HabitCard extends StatefulWidget {
   State<_HabitCard> createState() => _HabitCardState();
 }
 
-class _HabitCardState extends State<_HabitCard> {
+class _HabitCardState extends State<_HabitCard> with TickerProviderStateMixin {
   bool _showRegularityOptions = false;
 
   @override
@@ -470,13 +469,13 @@ class _HabitCardState extends State<_HabitCard> {
       curve: Curves.easeOutCubic,
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
       decoration: BoxDecoration(
-        color: const Color(0xFFF3F3F3),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: const Color(0x15000000)),
+        border: Border.all(color: const Color(0xFFE5E5EA)),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x12000000),
-            blurRadius: 7,
+            color: Color(0x08000000),
+            blurRadius: 3,
             offset: Offset(0, 1),
           ),
         ],
@@ -524,89 +523,113 @@ class _HabitCardState extends State<_HabitCard> {
                     ],
                   ),
                 ),
-                Icon(
-                  widget.expanded ? Icons.keyboard_arrow_down : Icons.chevron_right,
+                AnimatedRotation(
+                  turns: widget.expanded ? 0.5 : 0,
+                  duration: const Duration(milliseconds: 220),
+                  curve: Curves.easeOutCubic,
+                  child: Icon(
+                    Icons.keyboard_arrow_down,
                   size: 26,
                   color: const Color(0xFF202020).withAlpha(habit.isShared ? 150 : 255),
+                ),
                 ),
               ],
             ),
           ),
-          if (widget.expanded) ...[
-            const SizedBox(height: 12),
-            const Divider(height: 1, thickness: 1, color: Color(0x18000000)),
-            const SizedBox(height: 10),
-            _ColorPaletteEditor(item: item, disabled: widget.isUpdating),
-            const SizedBox(height: 12),
-            InkWell(
-              onTap: widget.isUpdating
-                  ? null
-                  : () => setState(() => _showRegularityOptions = !_showRegularityOptions),
-              borderRadius: BorderRadius.circular(8),
-              child: Row(
-                children: [
-                  const Expanded(
-                    child: Text(
-                      'Регулярность',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF1E1E1E),
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 220),
+            switchInCurve: Curves.easeOutCubic,
+            switchOutCurve: Curves.easeOutCubic,
+            transitionBuilder: (child, animation) {
+              return ClipRect(
+                child: SizeTransition(
+                  sizeFactor: animation,
+                  axisAlignment: -1,
+                  child: child,
+                ),
+              );
+            },
+            child: widget.expanded
+                ? Column(
+                    key: const ValueKey('expanded'),
+                    children: [
+                      const SizedBox(height: 12),
+                      const Divider(height: 1, thickness: 1, color: Color(0x18000000)),
+                      const SizedBox(height: 10),
+                      _ColorPaletteEditor(item: item, disabled: widget.isUpdating),
+                      const SizedBox(height: 12),
+                      InkWell(
+                        onTap: widget.isUpdating
+                            ? null
+                            : () => setState(() => _showRegularityOptions = !_showRegularityOptions),
+                        borderRadius: BorderRadius.circular(8),
+                        child: Row(
+                          children: [
+                            const Expanded(
+                              child: Text(
+                                'Регулярность',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF1E1E1E),
+                                ),
+                              ),
+                            ),
+                            Text(
+                              _scheduleLabel(habit.scheduleType, habit.intervalDays),
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                                color: Color(0xFF8A8A8A),
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Icon(
+                              _showRegularityOptions ? Icons.keyboard_arrow_down : Icons.chevron_right,
+                              size: 18,
+                              color: const Color(0xFF8A8A8A),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ),
-                  Text(
-                    _scheduleLabel(habit.scheduleType, habit.intervalDays),
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                      color: Color(0xFF8A8A8A),
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  Icon(
-                    _showRegularityOptions ? Icons.keyboard_arrow_down : Icons.chevron_right,
-                    size: 18,
-                    color: const Color(0xFF8A8A8A),
-                  ),
-                ],
-              ),
-            ),
-            if (_showRegularityOptions) ...[
-              const SizedBox(height: 10),
-              _RegularityOptions(item: item, disabled: widget.isUpdating),
-            ],
-            if (habit.isShared) ...[
-              const SizedBox(height: 10),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  'Совместная с ${habit.sharedWithName}',
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF7A7A7A),
-                  ),
-                ),
-              ),
-            ],
-            const SizedBox(height: 8),
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton(
-                onPressed: widget.isUpdating
-                    ? null
-                    : () => context.read<HabitsCubit>().deleteHabit(habit.id),
-                child: const Text(
-                  'Удалить',
-                  style: TextStyle(
-                    color: Color(0xFFB42318),
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            ),
-          ],
+                      if (_showRegularityOptions) ...[
+                        const SizedBox(height: 10),
+                        _RegularityOptions(item: item, disabled: widget.isUpdating),
+                      ],
+                      if (habit.isShared) ...[
+                        const SizedBox(height: 10),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            'Совместная с ${habit.sharedWithName}',
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF7A7A7A),
+                            ),
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 8),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton(
+                          onPressed: widget.isUpdating
+                              ? null
+                              : () => context.read<HabitsCubit>().deleteHabit(habit.id),
+                          child: const Text(
+                            'Удалить',
+                            style: TextStyle(
+                              color: Color(0xFFB42318),
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  )
+                : const SizedBox.shrink(key: ValueKey('collapsed')),
+          ),
         ],
       ),
     );
@@ -624,11 +647,12 @@ class _RegularityOptions extends StatelessWidget {
     final habit = item.habit;
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Wrap(
           spacing: 8,
           runSpacing: 8,
+          alignment: WrapAlignment.center,
           children: [
             _RegularityChip(
               selected: habit.scheduleType == 'daily',
@@ -671,6 +695,7 @@ class _RegularityOptions extends StatelessWidget {
         if (habit.scheduleType == 'interval') ...[
           const SizedBox(height: 10),
           Row(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               const Text(
                 'Раз в',
@@ -717,6 +742,7 @@ class _RegularityOptions extends StatelessWidget {
           Wrap(
             spacing: 7,
             runSpacing: 7,
+            alignment: WrapAlignment.center,
             children: List.generate(7, (index) {
               final day = index + 1;
               final selected = habit.weekdays.contains(day);
@@ -844,39 +870,106 @@ class _ColorPaletteEditor extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Wrap(
-      spacing: 9,
-      runSpacing: 9,
-      children: _palette14.map((hex) {
-        final selected = _normalizeHex(hex) == _normalizeHex(item.habit.color);
-        return InkWell(
-          onTap: disabled
-              ? null
-              : () => context.read<HabitsCubit>().updateHabit(
-                    habitId: item.habit.id,
-                    color: hex,
-                  ),
-          borderRadius: BorderRadius.circular(99),
-          child: Container(
-            width: 30,
-            height: 30,
-            padding: const EdgeInsets.all(2),
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: selected ? const Color(0xFF0277BD) : Colors.transparent,
-                width: 2,
+    final firstRow = _palette14.take(7).toList(growable: false);
+    final secondRow = _palette14.skip(7).take(7).toList(growable: false);
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const baseDotSize = 30.0;
+        const baseGap = 9.0;
+        const dotsPerRow = 7;
+
+        final requiredWidth =
+            dotsPerRow * baseDotSize + (dotsPerRow - 1) * baseGap;
+        final availableWidth = constraints.maxWidth.isFinite
+            ? constraints.maxWidth
+            : requiredWidth;
+        final scale = availableWidth < requiredWidth
+            ? (availableWidth / requiredWidth)
+            : 1.0;
+        final dotSize = (baseDotSize * scale).clamp(24.0, baseDotSize);
+        final gap = (baseGap * scale).clamp(5.0, baseGap);
+
+        return Center(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              _paletteRow(
+                context: context,
+                colors: firstRow,
+                dotSize: dotSize,
+                gap: gap,
               ),
-            ),
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: _hexToColor(hex),
-                shape: BoxShape.circle,
+              SizedBox(height: gap),
+              _paletteRow(
+                context: context,
+                colors: secondRow,
+                dotSize: dotSize,
+                gap: gap,
               ),
-            ),
+            ],
           ),
         );
-      }).toList(growable: false),
+      },
+    );
+  }
+
+  Widget _paletteRow({
+    required BuildContext context,
+    required List<String> colors,
+    required double dotSize,
+    required double gap,
+  }) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (var i = 0; i < colors.length; i++)
+          _paletteDot(
+            context,
+            colors[i],
+            size: dotSize,
+            rightGap: i == colors.length - 1 ? 0 : gap,
+          ),
+      ],
+    );
+  }
+
+  Widget _paletteDot(
+    BuildContext context,
+    String hex, {
+    required double size,
+    required double rightGap,
+  }) {
+    final selected = _normalizeHex(hex) == _normalizeHex(item.habit.color);
+    return Padding(
+      padding: EdgeInsets.only(right: rightGap),
+      child: InkWell(
+        onTap: disabled
+            ? null
+            : () => context.read<HabitsCubit>().updateHabit(
+                  habitId: item.habit.id,
+                  color: hex,
+                ),
+        borderRadius: BorderRadius.circular(99),
+        child: Container(
+          width: size,
+          height: size,
+          padding: const EdgeInsets.all(2),
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: selected ? const Color(0xFF0277BD) : Colors.transparent,
+              width: 2,
+            ),
+          ),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: _hexToColor(hex),
+              shape: BoxShape.circle,
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -897,9 +990,16 @@ class _EmptyHabitsCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFF3F3F3),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0x1A000000)),
+        border: Border.all(color: const Color(0xFFE5E5EA)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x08000000),
+            blurRadius: 3,
+            offset: Offset(0, 1),
+          ),
+        ],
       ),
       child: const Text(
         'Пока нет привычек. Добавьте первую по кнопке ниже.',
@@ -954,19 +1054,21 @@ Color _hexToColor(String rawValue) {
 }
 
 const List<String> _palette14 = [
+  // Основные
+  '#FF3B30', // red
+  '#0A84FF', // blue
+  '#34C759', // green
+  '#FFD60A', // yellow
   '#F89A37',
-  '#0A84FF',
-  '#8CD17D',
   '#AA161A',
-  '#708DB8',
+  '#8E8E93',
+  // Необычные
+  '#AF52DE',
+  '#8CD17D',
   '#4BD1C1',
   '#EA13CC',
-  '#FF3B30',
-  '#34C759',
-  '#FFD60A',
+  '#708DB8',
   '#FF9500',
-  '#AF52DE',
-  '#8E8E93',
   '#A2845E',
 ];
 

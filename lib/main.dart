@@ -16,20 +16,12 @@ Future<void> main() async {
       WidgetsFlutterBinding.ensureInitialized();
 
       FlutterError.onError = (details) {
-        AppLogger.e(
-          'FlutterError.onError',
-          details.exception,
-          details.stack,
-        );
+        AppLogger.e('FlutterError.onError', details.exception, details.stack);
         FlutterError.presentError(details);
       };
 
       PlatformDispatcher.instance.onError = (error, stackTrace) {
-        AppLogger.e(
-          'PlatformDispatcher.instance.onError',
-          error,
-          stackTrace,
-        );
+        AppLogger.e('PlatformDispatcher.instance.onError', error, stackTrace);
         return true;
       };
 
@@ -43,11 +35,7 @@ Future<void> main() async {
       runApp(HabicalApp(apiClient: apiClient, sessionService: sessionService));
     },
     (error, stackTrace) {
-      AppLogger.e(
-        'runZonedGuarded uncaught error',
-        error,
-        stackTrace,
-      );
+      AppLogger.e('runZonedGuarded uncaught error', error, stackTrace);
     },
   );
 }
