@@ -9,7 +9,6 @@ import '../../cubits/habits/habits_state.dart';
 import '../../models/habit_calendar_day_summary.dart';
 import '../../models/habit_list_item.dart';
 import '../../repositories/habits_repository.dart';
-import 'create_habit_screen.dart';
 
 class HabitsScreen extends StatelessWidget {
   const HabitsScreen({
@@ -46,10 +45,10 @@ class _HabitsView extends StatelessWidget {
 
   Future<void> _openCreateHabit(BuildContext context) async {
     final cubit = context.read<HabitsCubit>();
-    final submission = await Navigator.of(context).push<CreateHabitSubmission>(
-      MaterialPageRoute<CreateHabitSubmission>(
-        builder: (_) => const CreateHabitScreen(),
-      ),
+    final submission = await showDialog<CreateHabitSubmission>(
+      context: context,
+      barrierColor: const Color(0x60000000),
+      builder: (_) => const _CreateHabitDialog(),
     );
 
     if (submission == null) {
@@ -104,7 +103,7 @@ class _HabitsView extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 42,
                       fontWeight: FontWeight.w700,
-                      color: Color(0xFF1E1E1E),
+                      color: Color(0xFF0277BC),
                       height: 1,
                       letterSpacing: -0.7,
                     ),
@@ -175,6 +174,282 @@ class _HabitsView extends StatelessWidget {
         );
       },
     );
+  }
+}
+
+class _CreateHabitDialog extends StatefulWidget {
+  const _CreateHabitDialog();
+
+  @override
+  State<_CreateHabitDialog> createState() => _CreateHabitDialogState();
+}
+
+class _CreateHabitDialogState extends State<_CreateHabitDialog> {
+  static const double _dialogColorDotSize = 32;
+  static const double _dialogColorSpacing = 12;
+  late final TextEditingController _titleController;
+  late DateTime _startDate;
+  late String _selectedColor;
+  String? _titleError;
+
+  @override
+  void initState() {
+    super.initState();
+    final now = DateTime.now();
+    _titleController = TextEditingController();
+    _startDate = DateTime(now.year, now.month, now.day);
+    _selectedColor = _palette14.first;
+  }
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.white,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 32),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text(
+              'Новая привычка',
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF1C1C1E),
+              ),
+            ),
+            const SizedBox(height: 14),
+            TextField(
+              controller: _titleController,
+              autofocus: true,
+              textInputAction: TextInputAction.done,
+              cursorColor: const Color(0xFF0277BC),
+              onChanged: (_) {
+                if (_titleError != null) {
+                  setState(() => _titleError = null);
+                }
+              },
+              onSubmitted: (_) => _save(),
+              decoration: InputDecoration(
+                hintText: 'Название привычки',
+                errorText: _titleError,
+                filled: true,
+                fillColor: const Color(0xFFF7F7F7),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: Color(0xFFE5E5EA)),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: Color(0xFFE5E5EA)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(
+                    color: Color(0xFF0277BC),
+                    width: 1.4,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            InkWell(
+              onTap: _pickStartDate,
+              borderRadius: BorderRadius.circular(8),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF7F7F7),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFFE5E5EA)),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Старт: ${_formatDate(_startDate)}',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF1C1C1E),
+                      ),
+                    ),
+                    const Icon(
+                      Icons.calendar_month_outlined,
+                      size: 18,
+                      color: Color(0xFF8E8E93),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 14),
+            const Text(
+              'Цвет',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: Color(0xFF8E8E93),
+              ),
+            ),
+            const SizedBox(height: 10),
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: _palette14.length,
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 5,
+                mainAxisSpacing: _dialogColorSpacing,
+                crossAxisSpacing: _dialogColorSpacing,
+                mainAxisExtent: _dialogColorDotSize,
+              ),
+              itemBuilder: (context, index) {
+                final colorHex = _palette14[index];
+                final selected = _selectedColor == colorHex;
+                return Center(
+                  child: Material(
+                    color: Colors.transparent,
+                    shape: const CircleBorder(),
+                    child: InkWell(
+                      onTap: () => setState(() => _selectedColor = colorHex),
+                      customBorder: const CircleBorder(),
+                      splashColor: const Color(0x220277BC),
+                      hoverColor: const Color(0x140277BC),
+                      child: SizedBox(
+                        width: _dialogColorDotSize,
+                        height: _dialogColorDotSize,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: _hexToColor(colorHex),
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: selected
+                                  ? const Color(0xFF0277BC)
+                                  : Colors.transparent,
+                              width: 2.5,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 14),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  style: TextButton.styleFrom(
+                    foregroundColor: const Color(0xFF0277BC),
+                  ),
+                  child: const Text('Отмена'),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton(
+                  onPressed: _save,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF0277BC),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: const Text(
+                    'Сохранить',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickStartDate() async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _startDate,
+      firstDate: DateTime(now.year - 5, 1, 1),
+      lastDate: DateTime(now.year + 5, 12, 31),
+      builder: (context, child) {
+        final baseTheme = Theme.of(context);
+        final blueScheme = ColorScheme.fromSeed(
+          seedColor: const Color(0xFF0277BC),
+          brightness: baseTheme.brightness,
+        ).copyWith(surface: Colors.white);
+        return Theme(
+          data: baseTheme.copyWith(
+            colorScheme: blueScheme,
+            textButtonTheme: TextButtonThemeData(
+              style: TextButton.styleFrom(
+                foregroundColor: const Color(0xFF0277BC),
+              ),
+            ),
+            datePickerTheme: const DatePickerThemeData(
+              backgroundColor: Colors.white,
+              surfaceTintColor: Colors.transparent,
+              headerBackgroundColor: Color(0xFF0277BC),
+              headerForegroundColor: Colors.white,
+            ),
+          ),
+          child: child ?? const SizedBox.shrink(),
+        );
+      },
+    );
+    if (picked == null || !mounted) {
+      return;
+    }
+    setState(() {
+      _startDate = DateTime(picked.year, picked.month, picked.day);
+    });
+  }
+
+  void _save() {
+    final title = _titleController.text.trim();
+    if (title.isEmpty) {
+      setState(() {
+        _titleError = 'Введите название привычки';
+      });
+      return;
+    }
+    if (title.length > 120) {
+      setState(() {
+        _titleError = 'Название не должно быть длиннее 120 символов';
+      });
+      return;
+    }
+
+    Navigator.of(context).pop(
+      CreateHabitSubmission(
+        title: title,
+        startDate: _startDate,
+        color: _selectedColor,
+      ),
+    );
+  }
+
+  String _formatDate(DateTime date) {
+    final y = date.year.toString().padLeft(4, '0');
+    final m = date.month.toString().padLeft(2, '0');
+    final d = date.day.toString().padLeft(2, '0');
+    return '$y-$m-$d';
   }
 }
 
@@ -871,72 +1146,32 @@ class _ColorPaletteEditor extends StatelessWidget {
     required this.disabled,
   });
 
+  static const double _dotSize = 40;
+  static const double _spacing = 12;
+
   final HabitListItem item;
   final bool disabled;
 
   @override
   Widget build(BuildContext context) {
-    final firstRow = _palette14.take(7).toList(growable: false);
-    final secondRow = _palette14.skip(7).take(7).toList(growable: false);
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        const baseDotSize = 30.0;
-        const baseGap = 9.0;
-        const dotsPerRow = 7;
-
-        final requiredWidth =
-            dotsPerRow * baseDotSize + (dotsPerRow - 1) * baseGap;
-        final availableWidth = constraints.maxWidth.isFinite
-            ? constraints.maxWidth
-            : requiredWidth;
-        final scale = availableWidth < requiredWidth
-            ? (availableWidth / requiredWidth)
-            : 1.0;
-        final dotSize = (baseDotSize * scale).clamp(24.0, baseDotSize);
-        final gap = (baseGap * scale).clamp(5.0, baseGap);
-
-        return Center(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              _paletteRow(
-                context: context,
-                colors: firstRow,
-                dotSize: dotSize,
-                gap: gap,
-              ),
-              SizedBox(height: gap),
-              _paletteRow(
-                context: context,
-                colors: secondRow,
-                dotSize: dotSize,
-                gap: gap,
-              ),
-            ],
-          ),
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: _palette14.length,
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 5,
+        mainAxisSpacing: _spacing,
+        crossAxisSpacing: _spacing,
+        mainAxisExtent: _dotSize,
+      ),
+      itemBuilder: (context, index) {
+        return _paletteDot(
+          context,
+          _palette14[index],
+          size: _dotSize,
+          rightGap: 0,
         );
       },
-    );
-  }
-
-  Widget _paletteRow({
-    required BuildContext context,
-    required List<String> colors,
-    required double dotSize,
-    required double gap,
-  }) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        for (var i = 0; i < colors.length; i++)
-          _paletteDot(
-            context,
-            colors[i],
-            size: dotSize,
-            rightGap: i == colors.length - 1 ? 0 : gap,
-          ),
-      ],
     );
   }
 
@@ -960,18 +1195,20 @@ class _ColorPaletteEditor extends StatelessWidget {
         child: Container(
           width: size,
           height: size,
-          padding: const EdgeInsets.all(2),
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             border: Border.all(
               color: selected ? const Color(0xFF0277BD) : Colors.transparent,
-              width: 2,
+              width: 2.5,
             ),
           ),
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: _hexToColor(hex),
-              shape: BoxShape.circle,
+          child: Padding(
+            padding: const EdgeInsets.all(3),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: _hexToColor(hex),
+                shape: BoxShape.circle,
+              ),
             ),
           ),
         ),
@@ -1060,21 +1297,15 @@ Color _hexToColor(String rawValue) {
 }
 
 const List<String> _palette14 = [
-  // Основные
-  '#FF3B30', // red
-  '#0A84FF', // blue
-  '#34C759', // green
-  '#FFD60A', // yellow
-  '#F89A37',
-  '#AA161A',
-  '#8E8E93',
-  // Необычные
-  '#AF52DE',
-  '#8CD17D',
-  '#4BD1C1',
-  '#EA13CC',
-  '#708DB8',
-  '#FF9500',
-  '#A2845E',
+  '#FF6B6B', // red
+  '#FFA62B', // orange
+  '#FACC15', // yellow
+  '#4CAF50', // green
+  '#41D9E2', // turquoise
+  '#5AA9E6', // light blue
+  '#1D4ED8', // blue
+  '#BD2BFF', // violet
+  '#8B5E3C', // brown
+  '#64748B', // gray-blue
 ];
 
