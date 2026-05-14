@@ -68,6 +68,11 @@ class HomeCubit extends Cubit<HomeState> {
     await loadHome(day: state.selectedDay.add(const Duration(days: 1)));
   }
 
+  Future<void> jumpToToday() async {
+    final now = DateTime.now();
+    await loadHome(day: DateTime(now.year, now.month, now.day));
+  }
+
   Future<void> toggleTask(String taskId) async {
     final data = state.data;
     if (data == null) {

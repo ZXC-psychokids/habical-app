@@ -2,7 +2,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../repositories/auth_repository.dart';
-import 'settings_appearance_screen.dart';
 import 'settings_calendar_screen.dart';
 import 'settings_notifications_screen.dart';
 import 'settings_profile_screen.dart';
@@ -101,21 +100,6 @@ class _SettingsCard extends StatelessWidget {
               Navigator.of(context).push(
                 MaterialPageRoute<void>(
                   builder: (_) => const SettingsProfileScreen(),
-                ),
-              );
-            },
-          ),
-          const _RowDivider(),
-          _SettingsRow(
-            icon: Icons.palette_outlined,
-            title: '\u0412\u043d\u0435\u0448\u043d\u0438\u0439 \u0432\u0438\u0434',
-            trailingBuilder: (isActive) => _Chevron(
-              color: isActive ? SettingsUiTokens.accentBlue : const Color(0xFF171717),
-            ),
-            onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => const SettingsAppearanceScreen(),
                 ),
               );
             },

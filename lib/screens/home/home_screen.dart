@@ -73,8 +73,17 @@ class _HomeView extends StatelessWidget {
         final isInitialLoad =
             state.status == HomeStatus.loading && data == null;
         final isLoading = state.status == HomeStatus.loading;
+        final isTodaySelected = _isToday(state.selectedDay);
+        final now = DateTime.now();
+        final today = DateTime(now.year, now.month, now.day);
 
         final feedEntries = [...(data?.feedEntries ?? const <HomeFeedEntry>[])]
+          ..removeWhere((_) => !isTodaySelected)
+          ..removeWhere((entry) {
+            final created = entry.createdAt.toLocal();
+            final entryDay = DateTime(created.year, created.month, created.day);
+            return entryDay != today;
+          })
           ..sort((a, b) {
             if (a.isPriorityReminder != b.isPriorityReminder) {
               return a.isPriorityReminder ? -1 : 1;
@@ -120,6 +129,35 @@ class _HomeView extends StatelessWidget {
                                 color: Color(0xFF111111),
                               ),
                             ),
+                            if (!isTodaySelected) ...[
+                              const SizedBox(height: 8),
+                              Align(
+                                alignment: Alignment.centerLeft,
+                                child: OutlinedButton.icon(
+                                  onPressed: () {
+                                    context.read<HomeCubit>().jumpToToday();
+                                  },
+                                  icon: const Icon(
+                                    Icons.today_outlined,
+                                    size: 18,
+                                  ),
+                                  label: const Text('Сегодня'),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: const Color(0xFF0277BC),
+                                    side: const BorderSide(
+                                      color: Color(0xFF0277BC),
+                                    ),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 8,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
                             const SizedBox(height: 16),
                             _DailyCardSection(
                               selectedDay: state.selectedDay,
@@ -128,7 +166,7 @@ class _HomeView extends StatelessWidget {
                                   data?.events ?? const <HomeDayEventItem>[],
                               canToggleTasks: canToggleTasks,
                             ),
-                            if (showFriendsBlock) ...[
+                            if (showFriendsBlock && isTodaySelected) ...[
                               const SizedBox(height: 24),
                               const Text(
                                 'Друзья',
@@ -207,6 +245,13 @@ class _HomeView extends StatelessWidget {
     }
 
     return base;
+  }
+
+  bool _isToday(DateTime day) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final normalized = DateTime(day.year, day.month, day.day);
+    return normalized == today;
   }
 }
 
