@@ -21,6 +21,7 @@ class CalendarEventItem {
     required this.title,
     required this.startsAt,
     required this.endsAt,
+    required this.repeatRule,
     required this.categoryId,
     required this.categoryName,
     required this.categoryColor,
@@ -30,6 +31,7 @@ class CalendarEventItem {
   final String title;
   final DateTime startsAt;
   final DateTime endsAt;
+  final EventRepeatRule repeatRule;
   final String categoryId;
   final String categoryName;
   final String categoryColor;
@@ -314,6 +316,7 @@ class ApiCalendarRepository implements CalendarRepository {
         title: _requiredString(map['title'], 'title'),
         startsAt: _requiredDateTime(map['startsAt'], 'startsAt'),
         endsAt: _requiredDateTime(map['endsAt'], 'endsAt'),
+        repeatRule: _parseRepeatRule(map),
         categoryId: _requiredString(category['id'], 'category.id'),
         categoryName: _requiredString(category['title'], 'category.title'),
         categoryColor: _requiredString(category['color'], 'category.color'),
@@ -415,6 +418,45 @@ class ApiCalendarRepository implements CalendarRepository {
       if (parsed != null) {
         return parsed.toLocal();
       }
+    }
+    throw StateError('Invalid "$fieldName" field.');
+  }
+
+  EventRepeatRule _parseRepeatRule(Map<String, dynamic> map) {
+    final scheduleType = _requiredString(map['scheduleType'], 'scheduleType');
+    final intervalDays = _requiredInt(map['intervalDays'], 'intervalDays');
+
+    switch (scheduleType) {
+      case 'none':
+        return EventRepeatRule.none;
+      case 'daily':
+        return const EventRepeatRule(unit: EventRepeatUnit.day, interval: 1);
+      case 'interval':
+        if (intervalDays % 7 == 0) {
+          return EventRepeatRule(
+            unit: EventRepeatUnit.week,
+            interval: intervalDays ~/ 7,
+          );
+        }
+        return EventRepeatRule(
+          unit: EventRepeatUnit.day,
+          interval: intervalDays,
+        );
+      case 'monthly':
+        return EventRepeatRule(
+          unit: EventRepeatUnit.month,
+          interval: intervalDays,
+        );
+      case 'weekdays':
+        return const EventRepeatRule(unit: EventRepeatUnit.week, interval: 1);
+      default:
+        throw StateError('Invalid "scheduleType" field.');
+    }
+  }
+
+  int _requiredInt(dynamic value, String fieldName) {
+    if (value is int && value > 0) {
+      return value;
     }
     throw StateError('Invalid "$fieldName" field.');
   }

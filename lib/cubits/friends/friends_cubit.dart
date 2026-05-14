@@ -48,7 +48,7 @@ class FriendsCubit extends Cubit<FriendsState> {
       emit(
         state.copyWith(
           status: FriendsStatus.failure,
-          errorMessage: 'Failed to load friends data.',
+          errorMessage: 'Не удалось загрузить данные друзей.',
         ),
       );
     }
@@ -73,7 +73,7 @@ class FriendsCubit extends Cubit<FriendsState> {
       emit(
         state.copyWith(
           status: FriendsStatus.failure,
-          errorMessage: 'Failed to load more feed items.',
+          errorMessage: 'Не удалось загрузить новости друзей.',
         ),
       );
     }
@@ -84,7 +84,7 @@ class FriendsCubit extends Cubit<FriendsState> {
       await _repository.sendInviteByHandle(handle: handle);
       emit(
         state.copyWith(
-          infoMessage: 'Invite sent.',
+          infoMessage: 'Заявка отправлена.',
           clearError: true,
         ),
       );
@@ -93,7 +93,7 @@ class FriendsCubit extends Cubit<FriendsState> {
       emit(
         state.copyWith(
           status: FriendsStatus.failure,
-          errorMessage: 'Failed to send invite.',
+          errorMessage: 'Не удалось отправить заявку.',
         ),
       );
     }
@@ -105,7 +105,7 @@ class FriendsCubit extends Cubit<FriendsState> {
       await loadFriends();
       emit(
         state.copyWith(
-          infoMessage: 'Invite accepted.',
+          infoMessage: 'Друг добавлен.',
           clearError: true,
         ),
       );
@@ -114,7 +114,7 @@ class FriendsCubit extends Cubit<FriendsState> {
       emit(
         state.copyWith(
           status: FriendsStatus.failure,
-          errorMessage: 'Failed to accept invite.',
+          errorMessage: 'Не удалось принять заявку в друзья.',
         ),
       );
     }
@@ -126,7 +126,7 @@ class FriendsCubit extends Cubit<FriendsState> {
       await loadFriends();
       emit(
         state.copyWith(
-          infoMessage: 'Invite rejected.',
+          infoMessage: 'Заявка отклонена.',
           clearError: true,
         ),
       );
@@ -135,7 +135,7 @@ class FriendsCubit extends Cubit<FriendsState> {
       emit(
         state.copyWith(
           status: FriendsStatus.failure,
-          errorMessage: 'Failed to reject invite.',
+          errorMessage: 'Не удалось отклонить заявку в друзья.',
         ),
       );
     }
@@ -147,7 +147,7 @@ class FriendsCubit extends Cubit<FriendsState> {
       await loadFriends();
       emit(
         state.copyWith(
-          infoMessage: 'Friend removed.',
+          infoMessage: 'Друг удалён.',
           clearError: true,
         ),
       );
@@ -156,7 +156,7 @@ class FriendsCubit extends Cubit<FriendsState> {
       emit(
         state.copyWith(
           status: FriendsStatus.failure,
-          errorMessage: 'Failed to remove friend.',
+          errorMessage: 'Не удалось удалить друга.',
         ),
       );
     }
@@ -173,7 +173,7 @@ class FriendsCubit extends Cubit<FriendsState> {
       emit(
         state.copyWith(
           status: FriendsStatus.failure,
-          errorMessage: 'Failed to load friend page.',
+          errorMessage: 'Не удалось загрузить профиль друга.',
         ),
       );
     }

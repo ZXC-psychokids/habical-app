@@ -426,6 +426,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 title: item.title,
                 startsAt: item.startsAt,
                 endsAt: item.endsAt,
+                repeatRule: item.repeatRule,
                 categoryId: item.categoryId,
                 categoryName: item.categoryName,
                 color: _pastel(stripe),
@@ -583,6 +584,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
         return _NotionQuickCreateEventSheet(
           initialStart: card.startsAt,
           initialEnd: card.endsAt,
+          initialRepeatRule: card.repeatRule,
           initialTitle: card.title,
           initialCategoryId: card.categoryId,
           initialColor: card.stripe,
@@ -1600,6 +1602,7 @@ class _NotionQuickCreateEventSheet extends StatefulWidget {
     required this.initialStart,
     required this.categories,
     this.initialEnd,
+    this.initialRepeatRule = EventRepeatRule.none,
     this.initialTitle = '',
     this.initialCategoryId,
     this.initialColor = const Color(0xFF5AA9E6),
@@ -1611,6 +1614,7 @@ class _NotionQuickCreateEventSheet extends StatefulWidget {
   final DateTime initialStart;
   final List<EventCategoryItem> categories;
   final DateTime? initialEnd;
+  final EventRepeatRule initialRepeatRule;
   final String initialTitle;
   final String? initialCategoryId;
   final Color initialColor;
@@ -1640,6 +1644,7 @@ class _NotionQuickCreateEventSheetState
     _titleController.text = widget.initialTitle;
     _start = widget.initialStart;
     _end = widget.initialEnd ?? _start.add(const Duration(hours: 1));
+    _repeatRule = widget.initialRepeatRule;
     _selectedCategoryId = _resolveInitialCategoryId();
   }
 
@@ -2242,6 +2247,7 @@ class CalendarEventCard {
     required this.title,
     required this.startsAt,
     required this.endsAt,
+    required this.repeatRule,
     required this.categoryId,
     required this.categoryName,
     required this.color,
@@ -2252,6 +2258,7 @@ class CalendarEventCard {
   final String title;
   final DateTime startsAt;
   final DateTime endsAt;
+  final EventRepeatRule repeatRule;
   final String categoryId;
   final String categoryName;
   final Color color;
