@@ -1,5 +1,7 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:habical/cubits/navigation/navigation_cubit.dart';
 import 'package:habical/models/home_data.dart';
 import 'package:habical/models/home_day_event_item.dart';
 import 'package:habical/models/home_feed_entry.dart';
@@ -8,17 +10,15 @@ import 'package:habical/repositories/home_repository.dart';
 import 'package:habical/screens/home/home_screen.dart';
 
 void main() {
-  testWidgets('HomeScreen shows tasks, events and feed', (
-    WidgetTester tester,
-  ) async {
+  testWidgets('HomeScreen shows tasks, events and feed', (WidgetTester tester) async {
     final repository = _FakeHomeRepository(
       data: HomeData(
-        day: DateTime(2026, 3, 14),
+        day: DateTime.now(),
         tasks: [
           HomeTaskItem(
             id: 'task_1',
-            title: 'Чтение',
-            taskDate: DateTime(2026, 3, 14),
+            title: 'Task reading',
+            taskDate: DateTime.now(),
             position: 0,
             isCompleted: false,
           ),
@@ -26,11 +26,11 @@ void main() {
         events: [
           HomeDayEventItem(
             id: 'event_1',
-            title: 'Пара по ML',
-            startsAt: DateTime(2026, 3, 14, 11, 10),
-            endsAt: DateTime(2026, 3, 14, 12, 25),
+            title: 'ML lecture',
+            startsAt: DateTime.now().add(const Duration(hours: 2)),
+            endsAt: DateTime.now().add(const Duration(hours: 3)),
             categoryId: 'cat_1',
-            categoryName: 'Учёба',
+            categoryName: 'Study',
             categoryColor: '#F44336',
           ),
         ],
@@ -40,34 +40,30 @@ void main() {
             type: HomeFeedType.habitCreated,
             actor: const HomeFeedUserRef(
               id: 'user_1',
-              handle: 'Кирилл',
+              handle: 'kirill',
               avatarUrl: 'https://example.com/a.png',
             ),
             relatedHabit: const HomeFeedHabitRef(
               id: 'habit_1',
-              title: 'Чтение',
+              title: 'Reading',
               color: '#FF3B30',
             ),
-            createdAt: DateTime(2026, 3, 14, 7),
+            createdAt: DateTime.now(),
           ),
         ],
       ),
     );
 
-    await tester.pumpWidget(
-      MaterialApp(
-        home: HomeScreen(repository: repository),
-      ),
-    );
+    await tester.pumpWidget(_testApp(HomeScreen(repository: repository)));
 
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('Сегодня'), findsOneWidget);
-    expect(find.text('Чтение'), findsAtLeastNWidgets(1));
-    expect(find.text('Пара по ML'), findsOneWidget);
+    expect(find.text('Habical'), findsOneWidget);
+    expect(find.text('Task reading'), findsOneWidget);
+    expect(find.text('ML lecture'), findsOneWidget);
     expect(find.text('Друзья'), findsOneWidget);
-    expect(find.textContaining('Кирилл'), findsOneWidget);
-    expect(find.byType(Checkbox), findsAtLeastNWidgets(1));
+    expect(find.textContaining('kirill'), findsOneWidget);
+    expect(find.byIcon(Icons.add), findsOneWidget);
   });
 
   testWidgets('HomeScreen hides friends block when showFriendsBlock is false', (
@@ -75,12 +71,12 @@ void main() {
   ) async {
     final repository = _FakeHomeRepository(
       data: HomeData(
-        day: DateTime(2026, 3, 14),
+        day: DateTime.now(),
         tasks: [
           HomeTaskItem(
             id: 'task_1',
-            title: 'Чтение',
-            taskDate: DateTime(2026, 3, 14),
+            title: 'Task reading',
+            taskDate: DateTime.now(),
             position: 0,
             isCompleted: false,
           ),
@@ -91,8 +87,8 @@ void main() {
     );
 
     await tester.pumpWidget(
-      MaterialApp(
-        home: HomeScreen(
+      _testApp(
+        HomeScreen(
           repository: repository,
           showFriendsBlock: false,
         ),
@@ -102,14 +98,113 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Друзья'), findsNothing);
-    expect(find.text('Чтение'), findsOneWidget);
+    expect(find.text('Task reading'), findsOneWidget);
   });
+
+  testWidgets('HomeScreen shows app bar title when enabled', (
+    WidgetTester tester,
+  ) async {
+    final repository = _FakeHomeRepository(
+      data: HomeData(
+        day: DateTime.now(),
+        tasks: const [],
+        events: const [],
+        feedEntries: const [],
+      ),
+    );
+
+    await tester.pumpWidget(
+      _testApp(
+        HomeScreen(
+          repository: repository,
+          showAppBar: true,
+          appBarTitle: 'Главная',
+        ),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    expect(find.text('Главная'), findsOneWidget);
+  });
+
+  testWidgets('Task toggle is disabled when canToggleTasks is false', (
+    WidgetTester tester,
+  ) async {
+    final repository = _FakeHomeRepository(
+      data: HomeData(
+        day: DateTime.now(),
+        tasks: [
+          HomeTaskItem(
+            id: 'task_1',
+            title: 'Completed task',
+            taskDate: DateTime.now(),
+            position: 0,
+            isCompleted: true,
+          ),
+        ],
+        events: const [],
+        feedEntries: const [],
+      ),
+    );
+
+    await tester.pumpWidget(
+      _testApp(
+        HomeScreen(
+          repository: repository,
+          canToggleTasks: false,
+        ),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    expect(find.byIcon(Icons.check), findsOneWidget);
+    await tester.tap(find.byIcon(Icons.check), warnIfMissed: false);
+    await tester.pumpAndSettle();
+
+    expect(repository.toggleCalls, 0);
+  });
+
+  testWidgets('Task dialog validates empty title on save', (
+    WidgetTester tester,
+  ) async {
+    final repository = _FakeHomeRepository(
+      data: HomeData(
+        day: DateTime.now(),
+        tasks: const [],
+        events: const [],
+        feedEntries: const [],
+      ),
+    );
+
+    await tester.pumpWidget(_testApp(HomeScreen(repository: repository)));
+
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.add));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Новая задача'), findsOneWidget);
+    await tester.tap(find.text('Сохранить'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Название задачи не может быть пустым'), findsOneWidget);
+  });
+}
+
+Widget _testApp(Widget child) {
+  return BlocProvider(
+    create: (_) => NavigationCubit(),
+    child: MaterialApp(home: child),
+  );
 }
 
 class _FakeHomeRepository implements HomeRepository {
   _FakeHomeRepository({required this.data});
 
   final HomeData data;
+  int toggleCalls = 0;
 
   @override
   Future<HomeData> fetchHomeData({required DateTime day}) async {
@@ -117,7 +212,9 @@ class _FakeHomeRepository implements HomeRepository {
   }
 
   @override
-  Future<void> toggleTask({required String taskId}) async {}
+  Future<void> toggleTask({required String taskId}) async {
+    toggleCalls++;
+  }
 
   @override
   Future<HomeTaskItem> createTask({

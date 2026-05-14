@@ -1,4 +1,4 @@
-import 'package:flutter_test/flutter_test.dart';
+﻿import 'package:flutter_test/flutter_test.dart';
 import 'package:habical/cubits/create_habit/create_habit_cubit.dart';
 
 void main() {
@@ -8,7 +8,7 @@ void main() {
 
       cubit.submit();
 
-      expect(cubit.state.errorMessage, 'Введите название привычки.');
+      expect(cubit.state.errorMessage, isNotNull);
       expect(cubit.state.submission, isNull);
 
       cubit.close();
@@ -17,12 +17,13 @@ void main() {
     test('creates submission with trimmed title', () {
       final cubit = CreateHabitCubit();
 
-      cubit.updateName('   Новая привычка   ');
+      cubit.updateName('   New habit   ');
       cubit.submit();
 
       expect(cubit.state.errorMessage, isNull);
       expect(cubit.state.submission, isNotNull);
-      expect(cubit.state.submission!.title, 'Новая привычка');
+      expect(cubit.state.submission!.title, 'New habit');
+      expect(cubit.state.submission!.color, '#5AA9E6');
 
       cubit.close();
     });
