@@ -16,10 +16,12 @@ class HabitsScreen extends StatelessWidget {
     super.key,
     this.currentUserId = 'user_me',
     HabitsRepository? repository,
+    this.initialExpandedHabitId,
   }) : _repository = repository;
 
   final String currentUserId;
   final HabitsRepository? _repository;
+  final String? initialExpandedHabitId;
 
   @override
   Widget build(BuildContext context) {
@@ -28,7 +30,11 @@ class HabitsScreen extends StatelessWidget {
 
     return BlocProvider(
       create: (_) =>
-          HabitsCubit(repository: repository, userId: currentUserId)
+          HabitsCubit(
+            repository: repository,
+            userId: currentUserId,
+            initialExpandedHabitId: initialExpandedHabitId,
+          )
             ..loadHabits(),
       child: const _HabitsView(),
     );

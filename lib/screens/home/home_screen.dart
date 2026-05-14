@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../cubits/home/home_cubit.dart';
@@ -60,7 +60,14 @@ class _HomeView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<HomeCubit, HomeState>(
+    return BlocConsumer<HomeCubit, HomeState>(
+      listener: (context, state) {
+        final error = state.errorMessage;
+        if (error != null) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
+          context.read<HomeCubit>().clearError();
+        }
+      },
       builder: (context, state) {
         final data = state.data;
         final isInitialLoad =
@@ -304,6 +311,7 @@ class _TasksColumn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cubit = context.read<HomeCubit>();
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 12, 10, 10),
       child: Column(
@@ -322,20 +330,31 @@ class _TasksColumn extends StatelessWidget {
               ),
             )
           else
-            Column(
-              children: [
-                for (var index = 0; index < tasks.length; index++)
-                  Padding(
-                    key: ValueKey(tasks[index].id),
+            ReorderableListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              buildDefaultDragHandles: false,
+              itemCount: tasks.length,
+              onReorder: (oldIndex, newIndex) {
+                final adjusted = newIndex > oldIndex ? newIndex - 1 : newIndex;
+                cubit.moveTask(taskId: tasks[oldIndex].id, newPosition: adjusted);
+              },
+              itemBuilder: (context, index) {
+                final task = tasks[index];
+                return ReorderableDelayedDragStartListener(
+                  key: ValueKey(task.id),
+                  index: index,
+                  child: Padding(
                     padding: const EdgeInsets.only(bottom: 8),
                     child: _TaskRow(
-                      task: tasks[index],
+                      task: task,
                       index: index,
                       canToggleTasks: canToggleTasks,
                       events: events,
                     ),
                   ),
-              ],
+                );
+              },
             ),
           const SizedBox(height: 2),
           Align(
@@ -383,10 +402,9 @@ class _TaskRow extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 2),
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Container(
-              margin: const EdgeInsets.only(top: 4),
               width: 3,
               height: 40,
               decoration: BoxDecoration(
@@ -432,7 +450,7 @@ class _TaskRow extends StatelessWidget {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.only(top: 4, left: 8),
+              padding: const EdgeInsets.only(left: 8),
               child: InkWell(
                 onTap: canToggleTasks
                     ? () {
@@ -443,25 +461,17 @@ class _TaskRow extends StatelessWidget {
                     : null,
                 borderRadius: BorderRadius.circular(999),
                 child: Container(
-                  width: 20,
-                  height: 20,
+                  width: 22,
+                  height: 22,
                   decoration: BoxDecoration(
-                    shape: BoxShape.circle,
+                    borderRadius: BorderRadius.circular(6),
                     border: Border.all(color: color, width: 2),
                     color: task.isCompleted ? color : Colors.transparent,
                   ),
                   child: task.isCompleted
-                      ? const Icon(Icons.check, size: 12, color: Colors.white)
+                      ? const Icon(Icons.check, size: 13, color: Colors.white)
                       : null,
                 ),
-              ),
-            ),
-            const Padding(
-              padding: EdgeInsets.only(left: 4),
-              child: Icon(
-                Icons.drag_indicator,
-                size: 16,
-                color: Color(0xFFC7C7CC),
               ),
             ),
           ],
@@ -485,7 +495,7 @@ class _TaskRow extends StatelessWidget {
       return null;
     }
 
-    return parts.join(' · ');
+    return parts.join(' В· ');
   }
 
   String _timeRange(DateTime start, DateTime end) {
@@ -762,20 +772,34 @@ void _showTaskDialog(
   required HomeTaskItem? task,
   required List<HomeDayEventItem> events,
 }) {
+  final homeCubit = context.read<HomeCubit>();
+  final navigationCubit = context.read<NavigationCubit>();
   showDialog<void>(
     context: context,
     barrierColor: const Color(0x60000000),
     builder: (dialogContext) {
-      return _TaskEditDialog(task: task, events: events);
+      return _TaskEditDialog(
+        task: task,
+        events: events,
+        homeCubit: homeCubit,
+        navigationCubit: navigationCubit,
+      );
     },
   );
 }
 
 class _TaskEditDialog extends StatefulWidget {
-  const _TaskEditDialog({required this.task, required this.events});
+  const _TaskEditDialog({
+    this.task,
+    this.events = const <HomeDayEventItem>[],
+    this.homeCubit,
+    this.navigationCubit,
+  });
 
   final HomeTaskItem? task;
   final List<HomeDayEventItem> events;
+  final HomeCubit? homeCubit;
+  final NavigationCubit? navigationCubit;
 
   @override
   State<_TaskEditDialog> createState() => _TaskEditDialogState();
@@ -929,7 +953,13 @@ class _TaskEditDialogState extends State<_TaskEditDialog> {
               ),
               const SizedBox(height: 8),
               InkWell(
-                onTap: () => _showEventPicker(),
+                onTap: () {
+                  Navigator.of(context).pop();
+                  final cubit =
+                      widget.navigationCubit ??
+                      context.read<NavigationCubit>();
+                  cubit.openCalendarDayTab();
+                },
                 borderRadius: BorderRadius.circular(8),
                 child: Container(
                   padding: const EdgeInsets.symmetric(
@@ -999,11 +1029,12 @@ class _TaskEditDialogState extends State<_TaskEditDialog> {
                     InkWell(
                       onTap: () {
                         Navigator.of(context).pop();
-                        try {
-                          context.read<NavigationCubit>().selectTab(
-                            NavigationTab.habits,
-                          );
-                        } catch (_) {}
+                        final cubit =
+                            widget.navigationCubit ??
+                            context.read<NavigationCubit>();
+                        cubit.openHabitsTab(
+                          focusHabitId: widget.task!.habit!.id,
+                        );
                       },
                       child: const Text(
                         'К привычкам',
@@ -1027,10 +1058,9 @@ class _TaskEditDialogState extends State<_TaskEditDialog> {
                 if (canDelete)
                   TextButton(
                     onPressed: () {
+                      final cubit = widget.homeCubit ?? context.read<HomeCubit>();
                       Navigator.of(context).pop();
-                      try {
-                        context.read<HomeCubit>().deleteTask(widget.task!.id);
-                      } catch (_) {}
+                      cubit.deleteTask(widget.task!.id);
                     },
                     child: const Text(
                       'Удалить',
@@ -1051,7 +1081,7 @@ class _TaskEditDialogState extends State<_TaskEditDialog> {
                     ),
                     const SizedBox(width: 8),
                     ElevatedButton(
-                      onPressed: () => _save(context),
+                      onPressed: () async => _save(context),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF0277BC),
                         shape: RoundedRectangleBorder(
@@ -1100,56 +1130,7 @@ class _TaskEditDialogState extends State<_TaskEditDialog> {
     return 'привязана';
   }
 
-  void _showEventPicker() {
-    showDialog<String?>(
-      context: context,
-      builder: (pickerContext) {
-        return Dialog(
-          child: ListView(
-            shrinkWrap: true,
-            children: [
-              ListTile(
-                title: const Text('Не привязывать'),
-                onTap: () => Navigator.of(pickerContext).pop(''),
-              ),
-              ...widget.events.map(
-                (event) => ListTile(
-                  title: Text(event.title),
-                  subtitle: Text(
-                    '${_timeLabel(event.startsAt)}–${_timeLabel(event.endsAt)}',
-                    style: const TextStyle(fontSize: 12),
-                  ),
-                  onTap: () => Navigator.of(pickerContext).pop(event.id),
-                ),
-              ),
-              ListTile(
-                title: const Text('Создать новое событие'),
-                onTap: () {
-                  Navigator.of(pickerContext).pop('__create_new__');
-                },
-              ),
-            ],
-          ),
-        );
-      },
-    ).then((value) {
-      if (value == null) return;
-
-      if (value == '__create_new__') {
-        Navigator.of(context).pop();
-        try {
-          context.read<NavigationCubit>().selectTab(NavigationTab.calendar);
-        } catch (_) {}
-        return;
-      }
-
-      setState(() {
-        selectedEventId = value.isEmpty ? null : value;
-      });
-    });
-  }
-
-  void _save(BuildContext context) {
+  Future<void> _save(BuildContext context) async {
     final trimmedTitle = titleController.text.trim();
     if (trimmedTitle.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1158,75 +1139,73 @@ class _TaskEditDialogState extends State<_TaskEditDialog> {
       return;
     }
 
-    try {
-      final cubit = context.read<HomeCubit>();
-      final task = widget.task;
+    final cubit = widget.homeCubit ?? context.read<HomeCubit>();
+    final task = widget.task;
 
-      if (task == null) {
-        cubit
-            .createTask(
-              title: trimmedTitle,
-              manualColor: selectedEventId == null ? selectedColor : null,
-            )
-            .then((created) {
-              if (created != null && selectedEventId != null && mounted) {
-                cubit.linkTaskToEvent(
-                  taskId: created.id,
-                  eventId: selectedEventId!,
-                );
-              }
-              Navigator.of(context).pop();
-            });
-        return;
-      }
-
-      final hasTitleChanged = trimmedTitle != task.title;
-      final canChangeManualColor =
-          task.habit == null && selectedEventId == null;
-      final hasColorChanged =
-          canChangeManualColor &&
-          colorWasChangedByUser &&
-          selectedColor != task.manualColor;
-
-      if (hasTitleChanged || hasColorChanged) {
-        cubit.updateTask(
-          taskId: task.id,
-          input: HomeTaskUpdateInput(
-            title: hasTitleChanged ? trimmedTitle : null,
-            manualColor: hasColorChanged ? selectedColor : null,
-          ),
+    if (task == null) {
+      final created = await cubit.createTask(
+        title: trimmedTitle,
+        manualColor: selectedEventId == null ? selectedColor : null,
+      );
+      if (created != null && selectedEventId != null && mounted) {
+        await cubit.linkTaskToEvent(
+          taskId: created.id,
+          eventId: selectedEventId!,
         );
       }
-
-      final currentEventId = task.event?.id;
-      if (selectedEventId != currentEventId) {
-        if (selectedEventId == null) {
-          cubit.unlinkTaskFromEvent(task.id);
-        } else {
-          cubit.linkTaskToEvent(taskId: task.id, eventId: selectedEventId!);
-        }
+      if (mounted) {
+        Navigator.of(context).pop();
       }
+      return;
+    }
 
+    final hasTitleChanged = trimmedTitle != task.title;
+    final canChangeManualColor = task.habit == null && selectedEventId == null;
+    final hasColorChanged =
+        canChangeManualColor &&
+        colorWasChangedByUser &&
+        selectedColor != task.manualColor;
+
+    if (hasTitleChanged || hasColorChanged) {
+      await cubit.updateTask(
+        taskId: task.id,
+        input: HomeTaskUpdateInput(
+          title: hasTitleChanged ? trimmedTitle : null,
+          manualColor: hasColorChanged ? selectedColor : null,
+        ),
+      );
+    }
+
+    final currentEventId = task.event?.id;
+    if (selectedEventId != currentEventId) {
+      if (selectedEventId == null) {
+        await cubit.unlinkTaskFromEvent(task.id);
+      } else {
+        await cubit.linkTaskToEvent(taskId: task.id, eventId: selectedEventId!);
+      }
+    }
+
+    if (mounted) {
       Navigator.of(context).pop();
-    } catch (_) {}
+    }
   }
 }
 
 const List<String> _palette14 = [
-  '#FF3B30', // красный
-  '#0A84FF', // синий
-  '#34C759', // зеленый
-  '#FFD60A', // желтый
-  '#FF9500', // оранжевый
-  '#AF52DE', // фиолетовый
-  '#A2845E', // коричневый
-  '#FF2D55', // розовый
-  '#00C7BE', // бирюзовый
-  '#8E8E93', // серый
-  '#64B5F6', // светлый синий
-  '#81C784', // светлый зеленый
-  '#FFB74D', // светлый оранжевый
-  '#BA68C8', // светлый фиолетовый
+  '#FF3B30', // red
+  '#0A84FF', // blue
+  '#34C759', // green
+  '#FFD60A', // yellow
+  '#FF9500', // orange
+  '#AF52DE', // violet
+  '#A2845E', // brown
+  '#FF2D55', // pink
+  '#00C7BE', // turquoise
+  '#8E8E93', // gray
+  '#64B5F6', // light blue
+  '#81C784', // light green
+  '#FFB74D', // light orange
+  '#BA68C8', // light violet
 ];
 
 Color _hexToColor(String rawValue) {
@@ -1249,3 +1228,4 @@ String _timeLabel(DateTime value) {
   final m = value.minute.toString().padLeft(2, '0');
   return '$h:$m';
 }
+

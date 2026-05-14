@@ -8,13 +8,19 @@ import '../../repositories/habits_repository.dart';
 import 'habits_state.dart';
 
 class HabitsCubit extends Cubit<HabitsState> {
-  HabitsCubit({required HabitsRepository repository, required String userId})
+  HabitsCubit({
+    required HabitsRepository repository,
+    required String userId,
+    String? initialExpandedHabitId,
+  })
     : _repository = repository,
       _userId = userId,
+      _initialExpandedHabitId = initialExpandedHabitId,
       super(HabitsState.initial());
 
   final HabitsRepository _repository;
   final String _userId;
+  String? _initialExpandedHabitId;
 
   HabitsRepository get repository => _repository;
 
@@ -35,14 +41,19 @@ class HabitsCubit extends Cubit<HabitsState> {
       ]);
       final items = results[0] as List<HabitListItem>;
       final summary = results[1] as List<HabitCalendarDaySummary>;
+      final initialExpanded = _initialExpandedHabitId;
+      final canExpandInitial = initialExpanded != null &&
+          items.any((item) => item.habit.id == initialExpanded);
       emit(
         state.copyWith(
           status: HabitsStatus.loaded,
           items: items,
           calendarSummary: summary,
+          expandedHabitId: canExpandInitial ? initialExpanded : state.expandedHabitId,
           clearError: true,
         ),
       );
+      _initialExpandedHabitId = null;
       AppLogger.i('HabitsCubit.loadHabits completed, count=${items.length}');
     } catch (error, stackTrace) {
       AppLogger.e('HabitsCubit.loadHabits failed', error, stackTrace);

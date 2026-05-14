@@ -33,7 +33,12 @@ class _RootViewState extends State<_RootView> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<NavigationCubit, NavigationState>(
+    return BlocConsumer<NavigationCubit, NavigationState>(
+      listener: (context, state) {
+        if (state.openCalendarInDayMode && _calendarScale != CalendarScale.day) {
+          setState(() => _calendarScale = CalendarScale.day);
+        }
+      },
       builder: (context, state) {
         return Scaffold(
           backgroundColor: Colors.white,
@@ -57,7 +62,9 @@ class _RootViewState extends State<_RootView> {
               );
             },
             child: KeyedSubtree(
-              key: ValueKey(state.selectedTab),
+              key: ValueKey(
+                '${state.selectedTab.name}-${state.openCalendarInDayMode}-${state.habitsFocusHabitId ?? ''}',
+              ),
               child: _screenByTab(state.selectedTab),
             ),
           ),
@@ -118,7 +125,12 @@ class _RootViewState extends State<_RootView> {
         },
       ),
       NavigationTab.friends => const FriendsScreen(),
-      NavigationTab.habits => const HabitsScreen(),
+      NavigationTab.habits => HabitsScreen(
+        initialExpandedHabitId: context
+            .read<NavigationCubit>()
+            .state
+            .habitsFocusHabitId,
+      ),
       NavigationTab.settings => const SettingsScreen(),
     };
   }

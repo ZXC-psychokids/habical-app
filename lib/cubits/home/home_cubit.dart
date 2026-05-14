@@ -1,6 +1,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../core/app_logger.dart';
+import '../../models/home_data.dart';
 import '../../models/home_task_item.dart';
 import '../../repositories/home_repository.dart';
 import 'home_state.dart';
@@ -12,18 +13,28 @@ class HomeCubit extends Cubit<HomeState> {
        super(HomeState.initial());
 
   final HomeRepository _repository;
+  bool _isReordering = false;
 
-  Future<void> loadHome({DateTime? day}) async {
+  Future<void> loadHome({DateTime? day, bool showLoading = true}) async {
     final targetDay = _normalize(day ?? state.selectedDay);
     AppLogger.i('HomeCubit.loadHome started day=$targetDay');
 
-    emit(
-      state.copyWith(
-        status: HomeStatus.loading,
-        selectedDay: targetDay,
-        clearError: true,
-      ),
-    );
+    if (showLoading) {
+      emit(
+        state.copyWith(
+          status: HomeStatus.loading,
+          selectedDay: targetDay,
+          clearError: true,
+        ),
+      );
+    } else {
+      emit(
+        state.copyWith(
+          selectedDay: targetDay,
+          clearError: true,
+        ),
+      );
+    }
 
     try {
       final data = await _repository.fetchHomeData(day: targetDay);
@@ -58,11 +69,45 @@ class HomeCubit extends Cubit<HomeState> {
   }
 
   Future<void> toggleTask(String taskId) async {
+    final data = state.data;
+    if (data == null) {
+      return;
+    }
+
+    final index = data.tasks.indexWhere((task) => task.id == taskId);
+    if (index < 0) {
+      return;
+    }
+
+    final updatedTasks = [...data.tasks];
+    final current = updatedTasks[index];
+    updatedTasks[index] = current.copyWith(isCompleted: !current.isCompleted);
+
+    emit(
+      state.copyWith(
+        status: HomeStatus.loaded,
+        data: HomeData(
+          day: data.day,
+          tasks: updatedTasks,
+          events: data.events,
+          feedEntries: data.feedEntries,
+          nextFeedCursor: data.nextFeedCursor,
+        ),
+        clearError: true,
+      ),
+    );
+
     try {
       await _repository.toggleTask(taskId: taskId);
-      await loadHome(day: state.selectedDay);
+      await loadHome(day: state.selectedDay, showLoading: false);
     } catch (error, stackTrace) {
       AppLogger.e('HomeCubit.toggleTask failed taskId=$taskId', error, stackTrace);
+      emit(
+        state.copyWith(
+          status: HomeStatus.loaded,
+          data: data,
+        ),
+      );
       emit(
         state.copyWith(
           status: HomeStatus.failure,
@@ -137,6 +182,9 @@ class HomeCubit extends Cubit<HomeState> {
     required String taskId,
     required int newPosition,
   }) async {
+    if (_isReordering) {
+      return;
+    }
     final data = state.data;
     if (data == null) {
       return;
@@ -151,6 +199,9 @@ class HomeCubit extends Cubit<HomeState> {
 
     final item = reordered.removeAt(fromIndex);
     final targetIndex = clamped > reordered.length ? reordered.length : clamped;
+    if (targetIndex == fromIndex) {
+      return;
+    }
     reordered.insert(targetIndex, item);
 
     final requestItems = reordered
@@ -165,9 +216,26 @@ class HomeCubit extends Cubit<HomeState> {
         )
         .toList(growable: false);
 
+    emit(
+      state.copyWith(
+        status: HomeStatus.loaded,
+        data: data == null
+            ? null
+            : HomeData(
+                day: data.day,
+                tasks: reordered,
+                events: data.events,
+                feedEntries: data.feedEntries,
+                nextFeedCursor: data.nextFeedCursor,
+              ),
+        clearError: true,
+      ),
+    );
+
+    _isReordering = true;
     try {
       await _repository.reorderTasks(items: requestItems);
-      await loadHome(day: state.selectedDay);
+      await loadHome(day: state.selectedDay, showLoading: false);
     } catch (error, stackTrace) {
       AppLogger.e('HomeCubit.moveTask failed taskId=$taskId', error, stackTrace);
       emit(
@@ -176,6 +244,8 @@ class HomeCubit extends Cubit<HomeState> {
           errorMessage: 'Не удалось изменить порядок задач.',
         ),
       );
+    } finally {
+      _isReordering = false;
     }
   }
 

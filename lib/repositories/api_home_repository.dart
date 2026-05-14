@@ -5,6 +5,7 @@ import '../models/home_day_event_item.dart';
 import '../models/home_feed_entry.dart';
 import '../models/home_task_item.dart';
 import 'home_repository.dart';
+import 'package:dio/dio.dart';
 
 class ApiHomeRepository implements HomeRepository {
   ApiHomeRepository({
@@ -16,37 +17,45 @@ class ApiHomeRepository implements HomeRepository {
   @override
   Future<HomeData> fetchHomeData({required DateTime day}) async {
     final normalizedDay = DateTime(day.year, day.month, day.day);
-    final from = normalizedDay.toUtc().toIso8601String();
-    final to = normalizedDay
-        .add(const Duration(days: 1))
-        .subtract(const Duration(milliseconds: 1))
-        .toUtc()
-        .toIso8601String();
+    final from = DateTime(
+      normalizedDay.year,
+      normalizedDay.month,
+      normalizedDay.day,
+    ).toUtc().toIso8601String();
+    final to = DateTime(
+      normalizedDay.year,
+      normalizedDay.month,
+      normalizedDay.day,
+      23,
+      59,
+      59,
+      999,
+    ).toUtc().toIso8601String();
 
-    final results = await Future.wait([
-      _apiClient.dio.get(
-        '/me/tasks',
-        queryParameters: {'date': _formatDate(normalizedDay)},
-      ),
-      _apiClient.dio.get(
-        '/me/events',
-        queryParameters: {
-          'from': from,
-          'to': to,
-        },
-      ),
-      _apiClient.dio.get(
-        '/me/feed',
-        queryParameters: {
-          'limit': 20,
-        },
-      ),
-    ]);
+    final tasksResponse = await _apiClient.dio.get(
+      '/me/tasks',
+      queryParameters: {'date': _formatDate(normalizedDay)},
+    );
+    final eventsResponse = await _apiClient.dio.get(
+      '/me/events',
+      queryParameters: {
+        'from': from,
+        'to': to,
+      },
+    );
+    final feedResponse = await _apiClient.dio.get(
+      '/me/feed',
+      queryParameters: {
+        'limit': 20,
+      },
+    );
 
-    final rawTasks = results[0].data;
-    final rawEvents = results[1].data;
-    final rawFeed = results[2].data;
-    if (rawTasks is! List || rawEvents is! List || rawFeed is! Map) {
+    final rawTasks = tasksResponse.data;
+    final rawEvents = eventsResponse.data;
+    final rawFeed = feedResponse.data;
+    final tasksPayload = _extractListPayload(rawTasks, primaryKey: 'items');
+    final eventsPayload = _extractListPayload(rawEvents, primaryKey: 'items');
+    if (tasksPayload == null || eventsPayload == null || rawFeed is! Map) {
       AppLogger.e(
         'Failed to parse HomeData payload',
         StateError('Invalid home payload.'),
@@ -55,11 +64,12 @@ class ApiHomeRepository implements HomeRepository {
       throw StateError('Invalid home payload.');
     }
 
-    final tasks = rawTasks
+    final tasks = tasksPayload
         .map((item) => _parseTask(Map<String, dynamic>.from(item as Map)))
-        .toList(growable: false);
+        .toList(growable: false)
+      ..sort((a, b) => a.position.compareTo(b.position));
 
-    final events = rawEvents
+    final events = eventsPayload
         .map((item) => _parseEvent(Map<String, dynamic>.from(item as Map)))
         .toList(growable: false)
       ..sort((a, b) => a.startsAt.compareTo(b.startsAt));
@@ -105,16 +115,29 @@ class ApiHomeRepository implements HomeRepository {
     required int position,
     String? manualColor,
   }) async {
-    final response = await _apiClient.dio.post(
-      '/me/tasks',
-      data: {
-        'title': title.trim(),
-        'taskDate': _formatDate(taskDate),
-        'position': position,
-        if (manualColor != null && manualColor.isNotEmpty)
-          'manualColor': manualColor,
-      },
-    );
+    final payload = {
+      'title': title.trim(),
+      'taskDate': _formatDate(taskDate),
+      'position': position,
+      if (manualColor != null && manualColor.isNotEmpty) 'manualColor': manualColor,
+    };
+    Response<dynamic> response;
+    try {
+      response = await _apiClient.dio.post('/me/tasks', data: payload);
+    } on DioException catch (error) {
+      // Compatibility fallback for gateways that still expect "date".
+      if (error.response?.statusCode == 400 || error.response?.statusCode == 500) {
+        response = await _apiClient.dio.post(
+          '/me/tasks',
+          data: {
+            ...payload,
+            'date': _formatDate(taskDate),
+          },
+        );
+      } else {
+        rethrow;
+      }
+    }
 
     final raw = response.data;
     if (raw is! Map) {
@@ -423,4 +446,19 @@ class ApiHomeRepository implements HomeRepository {
     }
     return null;
   }
+
+  List<dynamic>? _extractListPayload(dynamic raw, {required String primaryKey}) {
+    if (raw is List) {
+      return raw;
+    }
+    if (raw is Map) {
+      final map = Map<String, dynamic>.from(raw);
+      final items = map[primaryKey] ?? map['data'] ?? map['events'] ?? map['tasks'];
+      if (items is List) {
+        return items;
+      }
+    }
+    return null;
+  }
+
 }
