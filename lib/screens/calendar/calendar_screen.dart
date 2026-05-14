@@ -494,6 +494,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
   Future<void> _openQuickCreateEventSheet({DateTime? initialStart}) async {
     if (_categories.isEmpty) {
       await _loadCategories();
+      if (!mounted) {
+        return;
+      }
     }
     final draft = await showModalBottomSheet<_CreateEventDraft>(
       context: context,
@@ -568,6 +571,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
     var deleteRequested = false;
     if (_categories.isEmpty) {
       await _loadCategories();
+      if (!mounted) {
+        return;
+      }
     }
     final draft = await showModalBottomSheet<_CreateEventDraft>(
       context: context,

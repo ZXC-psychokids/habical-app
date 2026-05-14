@@ -171,12 +171,10 @@ class _SettingsRow extends StatefulWidget {
     required this.title,
     required this.trailingBuilder,
     required this.onTap,
-    this.titleColor = SettingsUiTokens.primaryText,
   });
 
   final IconData icon;
   final String title;
-  final Color titleColor;
   final Widget Function(bool isActive) trailingBuilder;
   final VoidCallback onTap;
 
@@ -191,7 +189,9 @@ class _SettingsRowState extends State<_SettingsRow> {
   @override
   Widget build(BuildContext context) {
     final isActive = _isHovered || _isPressed;
-    final titleColor = isActive ? SettingsUiTokens.accentBlue : widget.titleColor;
+    final titleColor = isActive
+        ? SettingsUiTokens.accentBlue
+        : SettingsUiTokens.primaryText;
 
     return Material(
       color: Colors.transparent,

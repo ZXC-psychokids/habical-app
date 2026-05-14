@@ -219,15 +219,13 @@ class HomeCubit extends Cubit<HomeState> {
     emit(
       state.copyWith(
         status: HomeStatus.loaded,
-        data: data == null
-            ? null
-            : HomeData(
-                day: data.day,
-                tasks: reordered,
-                events: data.events,
-                feedEntries: data.feedEntries,
-                nextFeedCursor: data.nextFeedCursor,
-              ),
+        data: HomeData(
+          day: data.day,
+          tasks: reordered,
+          events: data.events,
+          feedEntries: data.feedEntries,
+          nextFeedCursor: data.nextFeedCursor,
+        ),
         clearError: true,
       ),
     );

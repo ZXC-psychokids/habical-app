@@ -552,7 +552,7 @@ class _EventsColumn extends StatelessWidget {
               ),
             )
           else
-            ...events.map((event) => _EventRow(event: event)).toList(),
+            ...events.map((event) => _EventRow(event: event)),
         ],
       ),
     );
@@ -1291,7 +1291,7 @@ class _TaskEditDialogState extends State<_TaskEditDialog> {
           eventId: selectedEventId!,
         );
       }
-      if (mounted) {
+      if (context.mounted) {
         Navigator.of(context).pop();
       }
       return;
@@ -1323,7 +1323,7 @@ class _TaskEditDialogState extends State<_TaskEditDialog> {
       );
     }
 
-    if (mounted) {
+    if (context.mounted) {
       Navigator.of(context).pop();
     }
   }

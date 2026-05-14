@@ -297,7 +297,8 @@ class _FriendIdentity extends StatelessWidget {
                   ? Image.network(
                       data.profile.avatarUrl,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => const _AvatarFallback(),
+                      errorBuilder: (context, error, stackTrace) =>
+                          const _AvatarFallback(),
                     )
                   : const _AvatarFallback(),
             ),

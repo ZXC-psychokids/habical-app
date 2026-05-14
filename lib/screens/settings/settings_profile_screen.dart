@@ -578,7 +578,8 @@ class _AvatarSection extends StatelessWidget {
                   ? Image.network(
                       avatarUrl,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => const _AvatarFallback(),
+                      errorBuilder: (context, error, stackTrace) =>
+                          const _AvatarFallback(),
                     )
                   : const _AvatarFallback(),
             ),
