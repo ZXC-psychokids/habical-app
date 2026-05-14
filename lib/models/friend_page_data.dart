@@ -15,11 +15,21 @@ class FriendTaskPreview {
     required this.id,
     required this.title,
     required this.isCompleted,
+    this.habitTitle,
+    this.habitColor,
+    this.eventId,
+    this.eventStartsAt,
+    this.eventEndsAt,
   });
 
   final String id;
   final String title;
   final bool isCompleted;
+  final String? habitTitle;
+  final String? habitColor;
+  final String? eventId;
+  final DateTime? eventStartsAt;
+  final DateTime? eventEndsAt;
 }
 
 class FriendEventPreview {
@@ -66,10 +76,24 @@ class FriendPageData {
     required this.tasks,
     required this.events,
     required this.sharedHabits,
+    required this.canViewTasks,
+    required this.canViewEvents,
+    required this.canViewSharedHabits,
   });
 
   final FriendPublicProfile profile;
   final List<FriendTaskPreview> tasks;
   final List<FriendEventPreview> events;
   final List<SharedHabitPreview> sharedHabits;
+  final bool canViewTasks;
+  final bool canViewEvents;
+  final bool canViewSharedHabits;
+
+  bool get isEverythingHidden {
+    return !canViewTasks && !canViewEvents && !canViewSharedHabits;
+  }
+
+  bool get hasTopBlockData {
+    return canViewTasks || canViewEvents;
+  }
 }

@@ -33,4 +33,9 @@ abstract class FriendsRepository {
     required String userId,
     required DateTime day,
   });
+
+  Future<List<FriendEventPreview>> fetchFriendEvents({
+    required String userId,
+    required DateTime day,
+  });
 }

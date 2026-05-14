@@ -1,3 +1,5 @@
+import 'package:dio/dio.dart';
+
 import '../core/api_client.dart';
 import '../core/app_logger.dart';
 import '../models/friend_feed_item.dart';
@@ -186,34 +188,15 @@ class ApiFriendsRepository implements FriendsRepository {
     required DateTime day,
   }) async {
     final dateString = _formatDate(day);
-    final results = await Future.wait([
-      _apiClient.dio.get('/users/$userId'),
-      _apiClient.dio.get(
-        '/users/$userId/tasks',
-        queryParameters: {'date': dateString},
-      ),
-      _apiClient.dio.get(
-        '/users/$userId/events',
-        queryParameters: {'date': dateString},
-      ),
-      _apiClient.dio.get('/users/$userId/shared-habits'),
-    ]);
-
-    final profileRaw = results[0].data;
-    final tasksRaw = results[1].data;
-    final eventsRaw = results[2].data;
-    final sharedRaw = results[3].data;
-
-    if (profileRaw is! Map ||
-        tasksRaw is! List ||
-        eventsRaw is! List ||
-        sharedRaw is! List) {
+    final profileResponse = await _apiClient.dio.get('/users/$userId');
+    final profileRaw = profileResponse.data;
+    if (profileRaw is! Map) {
       AppLogger.e(
-        'Failed to parse friend page payload',
-        StateError('Invalid friend page payload.'),
+        'Failed to parse friend profile payload',
+        StateError('Invalid friend profile payload.'),
         StackTrace.current,
       );
-      throw StateError('Invalid friend page payload.');
+      throw StateError('Invalid friend profile payload.');
     }
 
     final profileMap = Map<String, dynamic>.from(profileRaw);
@@ -223,67 +206,52 @@ class ApiFriendsRepository implements FriendsRepository {
       avatarUrl: _requiredString(profileMap['avatarUrl'], 'avatarUrl'),
     );
 
-    final tasks = tasksRaw
-        .map((item) => Map<String, dynamic>.from(item as Map))
-        .map(
-          (map) => FriendTaskPreview(
-            id: _requiredString(map['id'], 'id'),
-            title: _requiredString(map['title'], 'title'),
-            isCompleted: _requiredBool(map['isCompleted'], 'isCompleted'),
-          ),
-        )
-        .toList(growable: false);
+    final tasksResponse = await _getListOrForbidden(
+      '/users/$userId/tasks',
+      queryParameters: {'date': dateString},
+    );
+    final eventsResponse = await _getListOrForbidden(
+      '/users/$userId/events',
+      queryParameters: {'date': dateString},
+    );
+    final sharedHabitsResponse = await _getListOrForbidden(
+      '/users/$userId/shared-habits',
+    );
 
-    final events = eventsRaw
-        .map((item) => Map<String, dynamic>.from(item as Map))
-        .map((map) {
-          final categoryRaw = map['category'];
-          if (categoryRaw is! Map) {
-            throw StateError('Invalid friend event category payload.');
-          }
-          final category = Map<String, dynamic>.from(categoryRaw);
-          return FriendEventPreview(
-            id: _requiredString(map['id'], 'id'),
-            title: _requiredString(map['title'], 'title'),
-            startsAt: _requiredDateTime(map['startsAt'], 'startsAt'),
-            endsAt: _requiredDateTime(map['endsAt'], 'endsAt'),
-            categoryName: _requiredString(category['title'], 'category.title'),
-            categoryColor: _requiredString(category['color'], 'category.color'),
-          );
-        })
-        .toList(growable: false)
-      ..sort((a, b) => a.startsAt.compareTo(b.startsAt));
-
-    final sharedHabits = sharedRaw
-        .map((item) => Map<String, dynamic>.from(item as Map))
-        .map(
-          (map) => SharedHabitPreview(
-            sharedHabitPairId: _requiredString(
-              map['sharedHabitPairId'],
-              'sharedHabitPairId',
-            ),
-            habitId: _requiredString(map['habitId'], 'habitId'),
-            title: _requiredString(map['title'], 'title'),
-            color: _requiredString(map['color'], 'color'),
-            streakDays: _requiredInt(map['streakDays'], 'streakDays'),
-            youCompletedToday: _requiredBool(
-              map['youCompletedToday'],
-              'youCompletedToday',
-            ),
-            friendCompletedToday: _requiredBool(
-              map['friendCompletedToday'],
-              'friendCompletedToday',
-            ),
-          ),
-        )
-        .toList(growable: false);
+    final tasks = tasksResponse.allowed
+        ? _parseFriendTasks(tasksResponse.listData)
+        : const <FriendTaskPreview>[];
+    final events = eventsResponse.allowed
+        ? _parseFriendEvents(eventsResponse.listData)
+        : const <FriendEventPreview>[];
+    final sharedHabits = sharedHabitsResponse.allowed
+        ? _parseSharedHabits(sharedHabitsResponse.listData)
+        : const <SharedHabitPreview>[];
 
     return FriendPageData(
       profile: profile,
       tasks: tasks,
       events: events,
       sharedHabits: sharedHabits,
+      canViewTasks: tasksResponse.allowed,
+      canViewEvents: eventsResponse.allowed,
+      canViewSharedHabits: sharedHabitsResponse.allowed,
     );
+  }
+
+  @override
+  Future<List<FriendEventPreview>> fetchFriendEvents({
+    required String userId,
+    required DateTime day,
+  }) async {
+    final response = await _getListOrForbidden(
+      '/users/$userId/events',
+      queryParameters: {'date': _formatDate(day)},
+    );
+    if (!response.allowed) {
+      throw StateError('Friend calendar is private.');
+    }
+    return _parseFriendEvents(response.listData);
   }
 
   FriendFeedItem _parseFeedItem(Map<String, dynamic> map) {
@@ -316,6 +284,116 @@ class ApiFriendsRepository implements FriendsRepository {
         error,
         stackTrace,
       );
+      rethrow;
+    }
+  }
+
+  List<FriendTaskPreview> _parseFriendTasks(List<dynamic> raw) {
+    return raw
+        .map((item) => Map<String, dynamic>.from(item as Map))
+        .map(
+          (map) {
+            final habitMap = _asMap(map['habit']);
+            final eventMap = _asMap(map['event']);
+            return FriendTaskPreview(
+              id: _requiredString(map['id'], 'id'),
+              title: _requiredString(map['title'], 'title'),
+              isCompleted: _requiredBool(map['isCompleted'], 'isCompleted'),
+              habitTitle: habitMap == null
+                  ? null
+                  : _requiredString(habitMap['title'], 'habit.title'),
+              habitColor: habitMap == null
+                  ? null
+                  : _requiredString(habitMap['color'], 'habit.color'),
+              eventId: eventMap == null
+                  ? null
+                  : _requiredString(eventMap['id'], 'event.id'),
+              eventStartsAt: eventMap == null
+                  ? null
+                  : _requiredDateTime(eventMap['startsAt'], 'event.startsAt'),
+              eventEndsAt: eventMap == null
+                  ? null
+                  : _requiredDateTime(eventMap['endsAt'], 'event.endsAt'),
+            );
+          },
+        )
+        .toList(growable: false);
+  }
+
+  List<FriendEventPreview> _parseFriendEvents(List<dynamic> raw) {
+    return raw
+        .map((item) => Map<String, dynamic>.from(item as Map))
+        .map((map) {
+          final categoryRaw = map['category'];
+          if (categoryRaw is! Map) {
+            throw StateError('Invalid friend event category payload.');
+          }
+          final category = Map<String, dynamic>.from(categoryRaw);
+          return FriendEventPreview(
+            id: _requiredString(map['id'], 'id'),
+            title: _requiredString(map['title'], 'title'),
+            startsAt: _requiredDateTime(map['startsAt'], 'startsAt'),
+            endsAt: _requiredDateTime(map['endsAt'], 'endsAt'),
+            categoryName: _requiredString(category['title'], 'category.title'),
+            categoryColor: _requiredString(category['color'], 'category.color'),
+          );
+        })
+        .toList(growable: false)
+      ..sort((a, b) => a.startsAt.compareTo(b.startsAt));
+  }
+
+  List<SharedHabitPreview> _parseSharedHabits(List<dynamic> raw) {
+    return raw
+        .map((item) => Map<String, dynamic>.from(item as Map))
+        .map(
+          (map) => SharedHabitPreview(
+            sharedHabitPairId: _requiredString(
+              map['sharedHabitPairId'],
+              'sharedHabitPairId',
+            ),
+            habitId: _requiredString(map['habitId'], 'habitId'),
+            title: _requiredString(map['title'], 'title'),
+            color: _requiredString(map['color'], 'color'),
+            streakDays: _requiredInt(map['streakDays'], 'streakDays'),
+            youCompletedToday: _requiredBool(
+              map['youCompletedToday'],
+              'youCompletedToday',
+            ),
+            friendCompletedToday: _requiredBool(
+              map['friendCompletedToday'],
+              'friendCompletedToday',
+            ),
+          ),
+        )
+        .toList(growable: false);
+  }
+
+  Future<_ListAccessResult> _getListOrForbidden(
+    String path, {
+    Map<String, dynamic>? queryParameters,
+  }) async {
+    try {
+      final response = await _apiClient.dio.get(
+        path,
+        queryParameters: queryParameters,
+      );
+      final raw = response.data;
+      if (raw is! List) {
+        throw StateError('Invalid list payload.');
+      }
+      return _ListAccessResult(
+        allowed: true,
+        listData: raw,
+      );
+    } on DioException catch (error, stackTrace) {
+      if (error.response?.statusCode == 403) {
+        AppLogger.w('Access denied for $path');
+        return const _ListAccessResult(
+          allowed: false,
+          listData: <dynamic>[],
+        );
+      }
+      AppLogger.e('Request failed for $path', error, stackTrace);
       rethrow;
     }
   }
@@ -380,4 +458,14 @@ class ApiFriendsRepository implements FriendsRepository {
     final date = day.day.toString().padLeft(2, '0');
     return '${day.year}-$month-$date';
   }
+}
+
+class _ListAccessResult {
+  const _ListAccessResult({
+    required this.allowed,
+    required this.listData,
+  });
+
+  final bool allowed;
+  final List<dynamic> listData;
 }
